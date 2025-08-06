@@ -354,29 +354,30 @@ export const NewMemeBotLayout: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // First, check if message contains a contract address
+      const contractAddress = extractContractAddress(content);
+      
+      if (contractAddress) {
+        // If we found a contract address, analyze it regardless of other keywords
+        const analysisResponse = await handleTokenAnalysis(contractAddress);
+        setMessages(prev => [...prev, analysisResponse]);
+      }
       // Check if it's a trending token request
-      if (content.toLowerCase().includes('trending')) {
+      else if (content.toLowerCase().includes('trending')) {
         const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
         const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
         
         const trendingResponse = await handleTrendingRequest(chain);
         setMessages(prev => [...prev, trendingResponse]);
       }
-      // Check if it's a token analysis request
+      // Check if it's a token analysis request with keywords
       else if (content.toLowerCase().includes('analyze') || content.toLowerCase().includes('token')) {
-        const contractAddress = extractContractAddress(content);
+        // Use real AI response for keyword-based requests
+        const aiResponse = await generateAIResponse(content, null);
         
-        if (contractAddress) {
-          const analysisResponse = await handleTokenAnalysis(contractAddress);
-          setMessages(prev => [...prev, analysisResponse]);
-        } else {
-          // Use real AI response
-          const aiResponse = await generateAIResponse(content, null);
-          
-          // Start typing effect
-          setIsTyping(true);
-          setTypingContent(aiResponse);
-        }
+        // Start typing effect
+        setIsTyping(true);
+        setTypingContent(aiResponse);
       } else {
         // Use real AI response
         const aiResponse = await generateAIResponse(content, null);
