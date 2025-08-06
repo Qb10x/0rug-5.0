@@ -399,15 +399,20 @@ export const NewMemeBotLayout: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('Processing message:', content);
+      
       // First, check if message contains a contract address
       const contractAddress = extractContractAddress(content);
       
       if (contractAddress) {
+        console.log('Found contract address:', contractAddress);
         // Check if it's an LP lock request
         if (content.toLowerCase().includes('lp') || content.toLowerCase().includes('lock') || content.toLowerCase().includes('locked')) {
+          console.log('Processing LP lock analysis');
           const lpResponse = await handleLPLockAnalysis(contractAddress);
           setMessages(prev => [...prev, lpResponse]);
         } else {
+          console.log('Processing token analysis');
           // If we found a contract address, analyze it regardless of other keywords
           const analysisResponse = await handleTokenAnalysis(contractAddress);
           setMessages(prev => [...prev, analysisResponse]);
@@ -415,6 +420,7 @@ export const NewMemeBotLayout: React.FC = () => {
       }
       // Check if it's a trending token request
       else if (content.toLowerCase().includes('trending')) {
+        console.log('Processing trending request');
         const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
         const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
         
@@ -423,6 +429,7 @@ export const NewMemeBotLayout: React.FC = () => {
       }
       // Check if it's a token analysis request with keywords
       else if (content.toLowerCase().includes('analyze') || content.toLowerCase().includes('token')) {
+        console.log('Processing AI analysis request');
         // Use real AI response for keyword-based requests
         const aiResponse = await generateAIResponse(content, null);
         
@@ -430,6 +437,7 @@ export const NewMemeBotLayout: React.FC = () => {
         setIsTyping(true);
         setTypingContent(aiResponse);
       } else {
+        console.log('Processing general AI request');
         // Use real AI response
         const aiResponse = await generateAIResponse(content, null);
         
@@ -438,10 +446,11 @@ export const NewMemeBotLayout: React.FC = () => {
         setTypingContent(aiResponse);
       }
     } catch (error) {
+      console.error('Error in handleSendMessage:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: "Sorry, I'm having trouble processing your request. Please try again!",
+        content: `Sorry, I'm having trouble processing your request. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again!`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

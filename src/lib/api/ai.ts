@@ -5,8 +5,16 @@ const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 
 export async function callOpenRouterAPI(prompt: string): Promise<string> {
   try {
+    // Check if API key is available
+    if (!OPENROUTER_API_KEY) {
+      console.error('OpenRouter API key is missing');
+      return "Sorry, I'm not properly configured right now. Please check back later! 🔧";
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for faster responses
+
+    console.log('Making OpenRouter API call with prompt:', prompt.substring(0, 100) + '...');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -37,8 +45,21 @@ export async function callOpenRouterAPI(prompt: string): Promise<string> {
       })
     });
     
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter API error response:', response.status, errorText);
+      return `Sorry, I'm having trouble connecting right now (${response.status}). Please try again in a moment! 🔧`;
+    }
+    
     const data = await response.json();
     clearTimeout(timeoutId);
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected API response format:', data);
+      return "Sorry, I got an unexpected response. Please try again! 🔧";
+    }
+    
+    console.log('OpenRouter API call successful');
     return data.choices[0].message.content;
   } catch (error) {
     console.error('OpenRouter API error:', error);
@@ -202,37 +223,42 @@ What does this mean for a beginner investor? Is this good or bad?`;
 
 // General AI response function for chat interface - Optimized for speed
 export async function generateAIResponse(message: string, tokenData?: any): Promise<string> {
-  // Quick responses for common questions
-  const quickResponses: { [key: string]: string } = {
-    'hi': "Hey there! 👋 I'm MemeBot, your crypto buddy! What token do you want to know about?",
-    'hello': "Hello! 🚀 Ready to explore some tokens together?",
-    'help': "I'm here to help! Ask me about any token, and I'll break it down in simple terms. What's on your mind?",
-    'bonk': "BONK is a meme coin on Solana! 🐕 It's been around since 2022 and has a big community. But like all meme coins, it's risky - prices swing wildly! Only invest what you can afford to lose. DYOR! 🔍",
-    'pepe': "PEPE is another popular meme coin! 🐸 It's on Ethereum and has been around for a while. But remember - meme coins are super volatile! Never invest more than you can lose. Always DYOR! 💪",
-    'doge': "DOGE is the original meme coin! 🐕 It started as a joke but now has a huge community. Still risky though - crypto is unpredictable! Only invest what you can afford to lose. 🚀"
-  };
+  try {
+    // Quick responses for common questions
+    const quickResponses: { [key: string]: string } = {
+      'hi': "Hey there! 👋 I'm MemeBot, your crypto buddy! What token do you want to know about?",
+      'hello': "Hello! 🚀 Ready to explore some tokens together?",
+      'help': "I'm here to help! Ask me about any token, and I'll break it down in simple terms. What's on your mind?",
+      'bonk': "BONK is a meme coin on Solana! 🐕 It's been around since 2022 and has a big community. But like all meme coins, it's risky - prices swing wildly! Only invest what you can afford to lose. DYOR! 🔍",
+      'pepe': "PEPE is another popular meme coin! 🐸 It's on Ethereum and has been around for a while. But remember - meme coins are super volatile! Never invest more than you can lose. Always DYOR! 💪",
+      'doge': "DOGE is the original meme coin! 🐕 It started as a joke but now has a huge community. Still risky though - crypto is unpredictable! Only invest what you can afford to lose. 🚀"
+    };
 
-  // Check for quick responses first
-  const lowerMessage = message.toLowerCase().trim();
-  for (const [key, response] of Object.entries(quickResponses)) {
-    if (lowerMessage.includes(key)) {
-      return response;
+    // Check for quick responses first
+    const lowerMessage = message.toLowerCase().trim();
+    for (const [key, response] of Object.entries(quickResponses)) {
+      if (lowerMessage.includes(key)) {
+        return response;
+      }
     }
-  }
 
-  // For specific token questions, use a focused prompt
-  if (message.toLowerCase().includes('rug') || message.toLowerCase().includes('safe') || message.toLowerCase().includes('risk')) {
-    const prompt = `User asked: "${message}"
+    // For specific token questions, use a focused prompt
+    if (message.toLowerCase().includes('rug') || message.toLowerCase().includes('safe') || message.toLowerCase().includes('risk')) {
+      const prompt = `User asked: "${message}"
 
 Give a quick, honest answer about crypto risks. Be friendly but real about the dangers. Keep it under 100 words.`;
 
-    return await callOpenRouterAPI(prompt);
-  }
+      return await callOpenRouterAPI(prompt);
+    }
 
-  // For general questions, use a simple prompt
-  const prompt = `User: "${message}"
+    // For general questions, use a simple prompt
+    const prompt = `User: "${message}"
 
 Give a helpful, friendly response about crypto. Keep it short and simple. Use emojis.`;
 
-  return await callOpenRouterAPI(prompt);
+    return await callOpenRouterAPI(prompt);
+  } catch (error) {
+    console.error('Error in generateAIResponse:', error);
+    return "Sorry, I'm having trouble processing your request right now. Please try again in a moment! 🔧";
+  }
 } 
