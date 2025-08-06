@@ -9,18 +9,21 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { TokenCardPanel } from './TokenCardPanel';
-import { generateAIResponse } from '@/lib/api/ai';
-import { getTrendingTokensByChain, getChainDisplayName } from '@/lib/api/dexscreener';
+import { generateAIResponse, analyzeTokenComprehensive } from '@/lib/api/ai';
+import { getTrendingTokensByChain, getChainDisplayName, analyzeTokenComprehensive as analyzeTokenData } from '@/lib/api/dexscreener';
 import { InteractiveTokenCard } from './InteractiveTokenCard';
 import { TokenDetailsModal } from './TokenDetailsModal';
+import { TokenAnalysisCard } from './TokenAnalysisCard';
 
 // Message interface
 interface Message {
   id: string;
-  type: 'user' | 'bot' | 'interactive-tokens';
+  type: 'user' | 'bot' | 'interactive-tokens' | 'token-analysis';
   content: string;
   timestamp: Date;
   tokens?: any[]; // For interactive token cards
+  analysis?: any; // For token analysis
+  tokenData?: any; // For token data
 }
 
 // Expandable section component
@@ -228,6 +231,49 @@ const InteractiveTokensMessage: React.FC<InteractiveTokensMessageProps> = ({
   );
 };
 
+// Token Analysis Message Component
+interface TokenAnalysisMessageProps {
+  message: Message;
+  onViewDetails: (token: any) => void;
+  onTrade: (token: any) => void;
+}
+
+const TokenAnalysisMessage: React.FC<TokenAnalysisMessageProps> = ({ 
+  message, 
+  onViewDetails, 
+  onTrade 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col space-y-3"
+    >
+      {/* Bot message */}
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+          <Bot className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 border border-purple-200">
+          <p className="text-gray-800 text-sm whitespace-pre-wrap">
+            {message.content}
+          </p>
+        </div>
+      </div>
+
+      {/* Token Analysis Card */}
+      {message.analysis && message.tokenData && (
+        <div className="ml-11">
+          <TokenAnalysisCard 
+            tokenData={message.tokenData}
+            analysis={message.analysis}
+          />
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 // Main layout component
 export const NewMemeBotLayout: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -268,6 +314,27 @@ export const NewMemeBotLayout: React.FC = () => {
     "Show me trending Solana tokens"
   ];
 
+  // Check if message contains a contract address
+  const extractContractAddress = (message: string): string | null => {
+    // Match Solana addresses (base58 format, 32-44 characters)
+    const solanaAddressRegex = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
+    const matches = message.match(solanaAddressRegex);
+    
+    if (matches && matches.length > 0) {
+      return matches[0];
+    }
+    
+    // Match Ethereum-style addresses (0x followed by 40 hex characters)
+    const ethAddressRegex = /0x[a-fA-F0-9]{40}/g;
+    const ethMatches = message.match(ethAddressRegex);
+    
+    if (ethMatches && ethMatches.length > 0) {
+      return ethMatches[0];
+    }
+    
+    return null;
+  };
+
   // Handle send message with real AI integration
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -294,6 +361,22 @@ export const NewMemeBotLayout: React.FC = () => {
         
         const trendingResponse = await handleTrendingRequest(chain);
         setMessages(prev => [...prev, trendingResponse]);
+      }
+      // Check if it's a token analysis request
+      else if (content.toLowerCase().includes('analyze') || content.toLowerCase().includes('token')) {
+        const contractAddress = extractContractAddress(content);
+        
+        if (contractAddress) {
+          const analysisResponse = await handleTokenAnalysis(contractAddress);
+          setMessages(prev => [...prev, analysisResponse]);
+        } else {
+          // Use real AI response
+          const aiResponse = await generateAIResponse(content, null);
+          
+          // Start typing effect
+          setIsTyping(true);
+          setTypingContent(aiResponse);
+        }
       } else {
         // Use real AI response
         const aiResponse = await generateAIResponse(content, null);
@@ -343,6 +426,42 @@ export const NewMemeBotLayout: React.FC = () => {
         id: Date.now().toString(),
         type: 'bot' as const,
         content: `Sorry, I couldn't fetch trending tokens right now. Try asking about a specific token or check back later!`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  // Handle comprehensive token analysis
+  const handleTokenAnalysis = async (contractAddress: string): Promise<Message> => {
+    try {
+      // Fetch comprehensive token data
+      const tokenData = await analyzeTokenData(contractAddress);
+      
+      if (!tokenData) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: `Sorry, I couldn't find data for that token address. Please check the address and try again!`,
+          timestamp: new Date()
+        };
+      }
+
+      // Generate AI analysis
+      const analysis = await analyzeTokenComprehensive(tokenData.basic, tokenData.risk);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'token-analysis',
+        content: `🔍 **Token Analysis Complete!**\n\nI've analyzed ${tokenData.basic.symbol} (${tokenData.basic.name}) for you. Here's what I found:`,
+        timestamp: new Date(),
+        analysis,
+        tokenData: tokenData.basic
+      };
+    } catch (error) {
+      return {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `Sorry, I encountered an error while analyzing that token. Please try again!`,
         timestamp: new Date()
       };
     }
@@ -415,6 +534,16 @@ export const NewMemeBotLayout: React.FC = () => {
                 if (message.type === 'interactive-tokens') {
                   return (
                     <InteractiveTokensMessage
+                      key={message.id}
+                      message={message}
+                      onViewDetails={handleViewDetails}
+                      onTrade={handleTrade}
+                    />
+                  );
+                }
+                if (message.type === 'token-analysis') {
+                  return (
+                    <TokenAnalysisMessage
                       key={message.id}
                       message={message}
                       onViewDetails={handleViewDetails}

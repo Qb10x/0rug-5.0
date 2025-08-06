@@ -47,6 +47,70 @@ export async function callDeepSeekAPI(prompt: string): Promise<string> {
   }
 }
 
+// Comprehensive token analysis - Core feature for "Analyze this token"
+export async function analyzeTokenComprehensive(tokenData: any, riskData?: any): Promise<{
+  summary: string;
+  riskScore: number;
+  recommendation: 'BUY' | 'HOLD' | 'SELL' | 'AVOID';
+  keyInsights: string[];
+  aiExplanation: string;
+}> {
+  const prompt = `Analyze this token comprehensively:
+
+Token Data:
+- Name: ${tokenData.name || 'Unknown'}
+- Symbol: ${tokenData.symbol || 'Unknown'}
+- Price: $${tokenData.price || 'Unknown'}
+- 24h Change: ${tokenData.priceChange || 'Unknown'}%
+- Volume: $${tokenData.volume || 'Unknown'}
+- Liquidity: $${tokenData.liquidity || 'Unknown'}
+- Market Cap: $${tokenData.marketCap || 'Unknown'}
+- Holders: ${tokenData.holders || 'Unknown'}
+- LP Lock: ${tokenData.lpLocked ? 'Yes' : 'No'}
+- Contract Verified: ${tokenData.verified ? 'Yes' : 'No'}
+
+Risk Data:
+- Rug Pull Risk: ${riskData?.rugRisk || 'Unknown'}
+- Liquidity Risk: ${riskData?.liquidityRisk || 'Unknown'}
+- Holder Concentration: ${riskData?.holderConcentration || 'Unknown'}%
+
+Provide a comprehensive analysis in this format:
+1. SUMMARY: Brief overview (50 words max)
+2. RISK_SCORE: 1-10 (10 being highest risk)
+3. RECOMMENDATION: BUY/HOLD/SELL/AVOID
+4. KEY_INSIGHTS: 3 bullet points
+5. AI_EXPLANATION: Detailed but simple explanation
+
+Keep it beginner-friendly with emojis and simple language.`;
+
+  const response = await callDeepSeekAPI(prompt);
+  
+  // Parse the response to extract structured data
+  const lines = response.split('\n');
+  const summary = lines.find(line => line.includes('SUMMARY:'))?.replace('SUMMARY:', '').trim() || 'Analysis complete!';
+  const riskScoreMatch = response.match(/RISK_SCORE:\s*(\d+)/);
+  const riskScore = riskScoreMatch ? parseInt(riskScoreMatch[1]) : 5;
+  
+  const recommendationMatch = response.match(/RECOMMENDATION:\s*(BUY|HOLD|SELL|AVOID)/);
+  const recommendation = (recommendationMatch?.[1] as 'BUY' | 'HOLD' | 'SELL' | 'AVOID') || 'HOLD';
+  
+  // Parse insights without the 's' flag
+  const insightsMatch = response.match(/KEY_INSIGHTS:([\s\S]*?)(?=AI_EXPLANATION:|$)/);
+  const keyInsights = insightsMatch ? 
+    insightsMatch[1].split('•').filter(item => item.trim()).map(item => item.trim()) : 
+    ['Analysis provided', 'Check details', 'DYOR'];
+  
+  const aiExplanation = response.split('AI_EXPLANATION:')[1]?.trim() || response;
+
+  return {
+    summary,
+    riskScore,
+    recommendation,
+    keyInsights,
+    aiExplanation
+  };
+}
+
 // Generate newbie-friendly token analysis
 export async function generateNewbieTokenAnalysis(
   tokenData: any, 

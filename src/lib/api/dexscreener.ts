@@ -60,9 +60,152 @@ export interface DexscreenerPair {
   };
 }
 
+export interface ComprehensiveTokenData {
+  basic: {
+    name: string;
+    symbol: string;
+    address: string;
+    price: number;
+    priceChange24h: number;
+    volume24h: number;
+    liquidity: number;
+    marketCap: number;
+    fdv: number;
+  };
+  risk: {
+    rugRiskScore: number;
+    liquidityRisk: number;
+    volatilityRisk: number;
+    overallRiskScore: number;
+    riskFactors: string[];
+  };
+  metrics: {
+    buySellRatio: number;
+    transactionCount24h: number;
+    pairAge: number;
+    priceVolatility: number;
+  };
+  social: {
+    hasWebsite: boolean;
+    hasSocials: boolean;
+    socialCount: number;
+  };
+}
+
 export interface DexscreenerResponse {
   pairs: DexscreenerPair[];
 }
+
+// Comprehensive token analysis - Core function for "Analyze this token"
+export const analyzeTokenComprehensive = async (tokenAddress: string): Promise<ComprehensiveTokenData | null> => {
+  try {
+    const pair = await getDexscreenerTokenData(tokenAddress);
+    
+    if (!pair) {
+      return null;
+    }
+
+    // Calculate risk metrics
+    const rugRiskScore = calculateRugRiskScore(pair);
+    const liquidityRisk = calculateLiquidityRisk(pair);
+    const volatilityRisk = calculateVolatilityRisk(pair);
+    const overallRiskScore = Math.round((rugRiskScore + liquidityRisk + volatilityRisk) / 3);
+
+    // Calculate additional metrics
+    const buySellRatio = pair.txns.h24.buys / Math.max(pair.txns.h24.sells, 1);
+    const transactionCount24h = pair.txns.h24.buys + pair.txns.h24.sells;
+    const pairAge = Date.now() - pair.pairCreatedAt;
+    const priceVolatility = Math.abs(pair.priceChange.h1);
+
+    // Identify risk factors
+    const riskFactors = [];
+    if (pair.liquidity.usd < 10000) riskFactors.push('Very low liquidity');
+    if (pair.volume.h24 > pair.liquidity.usd * 10) riskFactors.push('Suspicious volume/liquidity ratio');
+    if (pairAge < 24 * 60 * 60 * 1000) riskFactors.push('Very new token (< 24h)');
+    if (pair.priceChange.h24 < -50) riskFactors.push('Recent price crash');
+    if (buySellRatio < 0.5) riskFactors.push('More sells than buys');
+    if (transactionCount24h < 10) riskFactors.push('Low transaction activity');
+
+    // Social presence
+    const hasWebsite = Boolean(pair.info?.websites && pair.info.websites.length > 0);
+    const hasSocials = Boolean(pair.info?.socials && pair.info.socials.length > 0);
+    const socialCount = (pair.info?.socials?.length || 0) + (hasWebsite ? 1 : 0);
+
+    return {
+      basic: {
+        name: pair.baseToken.name,
+        symbol: pair.baseToken.symbol,
+        address: pair.baseToken.address,
+        price: parseFloat(pair.priceUsd),
+        priceChange24h: pair.priceChange.h24,
+        volume24h: pair.volume.h24,
+        liquidity: pair.liquidity.usd,
+        marketCap: pair.marketCap || pair.fdv,
+        fdv: pair.fdv
+      },
+      risk: {
+        rugRiskScore,
+        liquidityRisk,
+        volatilityRisk,
+        overallRiskScore,
+        riskFactors
+      },
+      metrics: {
+        buySellRatio,
+        transactionCount24h,
+        pairAge,
+        priceVolatility
+      },
+      social: {
+        hasWebsite,
+        hasSocials,
+        socialCount
+      }
+    };
+  } catch (error) {
+    console.error('Comprehensive token analysis error:', error);
+    return null;
+  }
+};
+
+// Calculate liquidity risk score
+const calculateLiquidityRisk = (pair: DexscreenerPair): number => {
+  let riskScore = 0;
+  
+  // Very low liquidity
+  if (pair.liquidity.usd < 5000) riskScore += 40;
+  else if (pair.liquidity.usd < 25000) riskScore += 25;
+  else if (pair.liquidity.usd < 100000) riskScore += 10;
+  
+  // High volume to liquidity ratio
+  const volumeLiquidityRatio = pair.volume.h24 / Math.max(pair.liquidity.usd, 1);
+  if (volumeLiquidityRatio > 20) riskScore += 30;
+  else if (volumeLiquidityRatio > 10) riskScore += 20;
+  else if (volumeLiquidityRatio > 5) riskScore += 10;
+  
+  return Math.min(riskScore, 100);
+};
+
+// Calculate volatility risk score
+const calculateVolatilityRisk = (pair: DexscreenerPair): number => {
+  let riskScore = 0;
+  
+  // Extreme price changes
+  if (Math.abs(pair.priceChange.h24) > 100) riskScore += 40;
+  else if (Math.abs(pair.priceChange.h24) > 50) riskScore += 25;
+  else if (Math.abs(pair.priceChange.h24) > 25) riskScore += 15;
+  
+  // High hourly volatility
+  if (Math.abs(pair.priceChange.h1) > 20) riskScore += 30;
+  else if (Math.abs(pair.priceChange.h1) > 10) riskScore += 20;
+  
+  // Low transaction activity
+  const totalTxns = pair.txns.h24.buys + pair.txns.h24.sells;
+  if (totalTxns < 5) riskScore += 25;
+  else if (totalTxns < 20) riskScore += 15;
+  
+  return Math.min(riskScore, 100);
+};
 
 // Get token data from Dexscreener using the correct endpoint
 export const getDexscreenerTokenData = async (tokenAddress: string): Promise<DexscreenerPair | null> => {
