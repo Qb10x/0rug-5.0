@@ -1,22 +1,22 @@
-// AI API Integration with DeepSeek for Newbie-Friendly Analysis
+// AI API Integration with OpenAI/ChatGPT for Fast Analysis
 // Following 0rug.com coding guidelines
 
-const DEEPSEEK_API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
+const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
-export async function callDeepSeekAPI(prompt: string): Promise<string> {
+export async function callOpenAIAPI(prompt: string): Promise<string> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for faster responses
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -28,7 +28,7 @@ export async function callDeepSeekAPI(prompt: string): Promise<string> {
           }
         ],
         max_tokens: 300,
-        temperature: 0.8,
+        temperature: 0.7,
         top_p: 0.9,
         frequency_penalty: 0.1,
         presence_penalty: 0.1
@@ -39,7 +39,7 @@ export async function callDeepSeekAPI(prompt: string): Promise<string> {
     clearTimeout(timeoutId);
     return data.choices[0].message.content;
   } catch (error) {
-    console.error('DeepSeek API error:', error);
+    console.error('OpenAI API error:', error);
     if (error instanceof Error && error.name === 'AbortError') {
       return "Sorry, that's taking too long! Try asking something simpler or check your connection. 🚀";
     }
@@ -83,7 +83,7 @@ Provide a comprehensive analysis in this format:
 
 Keep it beginner-friendly with emojis and simple language.`;
 
-  const response = await callDeepSeekAPI(prompt);
+  const response = await callOpenAIAPI(prompt);
   
   // Parse the response to extract structured data
   const lines = response.split('\n');
@@ -139,7 +139,7 @@ Explain this in simple terms:
 
 Keep it conversational and beginner-friendly. Use emojis and simple language.`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 }
 
 // Generate "Explain Like I'm 5" explanations
@@ -151,7 +151,7 @@ Context: ${context}
 
 Make it super simple and use analogies that anyone can understand.`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 }
 
 // Generate risk assessment in plain English
@@ -166,7 +166,7 @@ Risk Factors: ${riskFactors.join(', ')}
 
 Explain what these risks mean in plain English and what a beginner should watch out for.`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 }
 
 // Generate "Should I Buy?" recommendation
@@ -183,7 +183,7 @@ Volume: $${tokenData.volume}
 
 Give a clear recommendation and explain why in simple terms.`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 }
 
 // Generate educational content about token metrics
@@ -195,7 +195,7 @@ Value: ${value}
 
 What does this mean for a beginner investor? Is this good or bad?`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 }
 
 // General AI response function for chat interface - Optimized for speed
@@ -224,7 +224,7 @@ export async function generateAIResponse(message: string, tokenData?: any): Prom
 
 Give a quick, honest answer about crypto risks. Be friendly but real about the dangers. Keep it under 100 words.`;
 
-    return await callDeepSeekAPI(prompt);
+    return await callOpenAIAPI(prompt);
   }
 
   // For general questions, use a simple prompt
@@ -232,5 +232,5 @@ Give a quick, honest answer about crypto risks. Be friendly but real about the d
 
 Give a helpful, friendly response about crypto. Keep it short and simple. Use emojis.`;
 
-  return await callDeepSeekAPI(prompt);
+  return await callOpenAIAPI(prompt);
 } 
