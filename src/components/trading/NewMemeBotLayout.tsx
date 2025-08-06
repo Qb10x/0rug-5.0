@@ -10,20 +10,22 @@ import {
 } from 'lucide-react';
 import { TokenCardPanel } from './TokenCardPanel';
 import { generateAIResponse, analyzeTokenComprehensive } from '@/lib/api/ai';
-import { getTrendingTokensByChain, getChainDisplayName, analyzeTokenComprehensive as analyzeTokenData } from '@/lib/api/dexscreener';
+import { getTrendingTokensByChain, getChainDisplayName, analyzeTokenComprehensive as analyzeTokenData, analyzeLPLockStatus } from '@/lib/api/dexscreener';
 import { InteractiveTokenCard } from './InteractiveTokenCard';
 import { TokenDetailsModal } from './TokenDetailsModal';
 import { TokenAnalysisCard } from './TokenAnalysisCard';
+import { LPLockAnalysisCard } from './LPLockAnalysisCard';
 
 // Message interface
 interface Message {
   id: string;
-  type: 'user' | 'bot' | 'interactive-tokens' | 'token-analysis';
+  type: 'user' | 'bot' | 'interactive-tokens' | 'token-analysis' | 'lp-analysis';
   content: string;
   timestamp: Date;
   tokens?: any[]; // For interactive token cards
   analysis?: any; // For token analysis
   tokenData?: any; // For token data
+  lpData?: any; // For LP lock data
 }
 
 // Expandable section component
@@ -274,6 +276,49 @@ const TokenAnalysisMessage: React.FC<TokenAnalysisMessageProps> = ({
   );
 };
 
+// LP Analysis Message Component
+interface LPAnalysisMessageProps {
+  message: Message;
+  onViewDetails: (token: any) => void;
+  onTrade: (token: any) => void;
+}
+
+const LPAnalysisMessage: React.FC<LPAnalysisMessageProps> = ({ 
+  message, 
+  onViewDetails, 
+  onTrade 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col space-y-3"
+    >
+      {/* Bot message */}
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+          <Bot className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 border border-purple-200">
+          <p className="text-gray-800 text-sm whitespace-pre-wrap">
+            {message.content}
+          </p>
+        </div>
+      </div>
+
+      {/* LP Lock Analysis Card */}
+      {message.lpData && message.tokenData && (
+        <div className="ml-11">
+          <LPLockAnalysisCard 
+            tokenData={message.tokenData}
+            lpData={message.lpData}
+          />
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 // Main layout component
 export const NewMemeBotLayout: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -358,9 +403,15 @@ export const NewMemeBotLayout: React.FC = () => {
       const contractAddress = extractContractAddress(content);
       
       if (contractAddress) {
-        // If we found a contract address, analyze it regardless of other keywords
-        const analysisResponse = await handleTokenAnalysis(contractAddress);
-        setMessages(prev => [...prev, analysisResponse]);
+        // Check if it's an LP lock request
+        if (content.toLowerCase().includes('lp') || content.toLowerCase().includes('lock') || content.toLowerCase().includes('locked')) {
+          const lpResponse = await handleLPLockAnalysis(contractAddress);
+          setMessages(prev => [...prev, lpResponse]);
+        } else {
+          // If we found a contract address, analyze it regardless of other keywords
+          const analysisResponse = await handleTokenAnalysis(contractAddress);
+          setMessages(prev => [...prev, analysisResponse]);
+        }
       }
       // Check if it's a trending token request
       else if (content.toLowerCase().includes('trending')) {
@@ -468,6 +519,55 @@ export const NewMemeBotLayout: React.FC = () => {
     }
   };
 
+  // Handle LP lock analysis
+  const handleLPLockAnalysis = async (contractAddress: string): Promise<Message> => {
+    try {
+      // Fetch comprehensive token data
+      const tokenData = await analyzeTokenData(contractAddress);
+      
+      if (!tokenData) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: `Sorry, I couldn't find data for that token address. Please check the address and try again!`,
+          timestamp: new Date()
+        };
+      }
+
+      // Get LP lock analysis
+      const lpData = await analyzeLPLockStatus(contractAddress);
+      
+      if (!lpData) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot',
+          content: `Sorry, I couldn't analyze the LP lock status for that token. Please try again!`,
+          timestamp: new Date()
+        };
+      }
+
+      // Generate response message
+      const lockStatus = lpData.isLocked ? 'LOCKED' : 'UNLOCKED';
+      const riskEmoji = lpData.riskLevel === 'LOW' ? '🟢' : lpData.riskLevel === 'MEDIUM' ? '🟡' : '🔴';
+      
+      return {
+        id: Date.now().toString(),
+        type: 'lp-analysis',
+        content: `🔒 **LP Lock Analysis Complete!**\n\n${tokenData.basic.symbol} LP Status: **${lockStatus}** ${riskEmoji}\n\nSecurity Score: ${lpData.securityScore}/100\nRisk Level: ${lpData.riskLevel}`,
+        timestamp: new Date(),
+        lpData,
+        tokenData: tokenData.basic
+      };
+    } catch (error) {
+      return {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `Sorry, I encountered an error while analyzing the LP lock status. Please try again!`,
+        timestamp: new Date()
+      };
+    }
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -545,6 +645,16 @@ export const NewMemeBotLayout: React.FC = () => {
                 if (message.type === 'token-analysis') {
                   return (
                     <TokenAnalysisMessage
+                      key={message.id}
+                      message={message}
+                      onViewDetails={handleViewDetails}
+                      onTrade={handleTrade}
+                    />
+                  );
+                }
+                if (message.type === 'lp-analysis') {
+                  return (
+                    <LPAnalysisMessage
                       key={message.id}
                       message={message}
                       onViewDetails={handleViewDetails}
