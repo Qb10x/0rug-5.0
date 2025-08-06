@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Sidebar from './Sidebar';
 
 interface LayoutProps {
@@ -8,13 +8,17 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-background fixed inset-0 overflow-auto">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="min-h-screen bg-background">
+      {/* Sidebar - Always visible */}
+      <Sidebar onCollapseChange={setIsSidebarCollapsed} />
       
-      {/* Main content */}
-      <div className="lg:ml-64 transition-all duration-300">
+      {/* Main content - Adjusts for sidebar */}
+      <div className={`transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+      }`}>
         <div className="min-h-screen bg-background">
           {children}
         </div>

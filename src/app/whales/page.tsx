@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import Layout from '@/components/layout/Layout';
 import { 
   Users, 
-  TrendingUp, 
   AlertTriangle, 
   DollarSign,
   RefreshCw,
@@ -13,7 +12,7 @@ import {
   Eye,
   Activity
 } from 'lucide-react';
-import { trackWhaleMovements } from '@/lib/orc-engine/whales/trackWhales';
+
 
 // Whale interface
 interface Whale {
@@ -74,8 +73,8 @@ export default function WhalesPage() {
       ];
       
       setWhales(mockWhales);
-    } catch (error) {
-      console.error('Error loading whales:', error);
+    } catch {
+      // Handle error silently for now
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +152,7 @@ export default function WhalesPage() {
             </div>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
+              onChange={(e) => setFilterType(e.target.value as 'all' | 'buy' | 'sell' | 'transfer')}
               className="px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors duration-200"
             >
               <option value="all">All Movements</option>

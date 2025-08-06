@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Layout from '@/components/layout/Layout';
 import { SettingsSidebar } from '@/components/settings/SettingsSidebar';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
-import { useTheme } from '@/lib/theme/ThemeProvider';
+
 import { 
   Palette, 
   Bell, 
@@ -20,7 +20,7 @@ import { SettingsSection } from '@/components/settings/SettingsTypes';
 
 // Settings page component
 export default function SettingsPage() {
-  const { theme } = useTheme();
+
   const [activeSection, setActiveSection] = useState('appearance');
   const [saved, setSaved] = useState(false);
 
@@ -80,7 +80,7 @@ export default function SettingsPage() {
   const renderSectionContent = () => {
     switch (activeSection) {
       case 'appearance':
-        return <AppearanceSettings theme={theme} />;
+        return <AppearanceSettings />;
       case 'notifications':
         return (
           <div className="space-y-6">
@@ -246,7 +246,7 @@ export default function SettingsPage() {
           </div>
         );
       default:
-        return <AppearanceSettings theme={theme} />;
+        return <AppearanceSettings />;
     }
   };
 

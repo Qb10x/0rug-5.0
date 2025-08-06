@@ -28,90 +28,77 @@ export async function sendAlert(alert: AlertMessage): Promise<boolean> {
     const config = getAlertConfig();
     
     if (!config.isEnabled) {
-      console.log('Alerts disabled, skipping alert:', alert.title);
       return false;
     }
 
-    // Check rate limiting
     if (!isRateLimitAllowed()) {
-      console.warn('Rate limit exceeded, skipping alert');
       return false;
     }
 
-    // Send to Telegram if configured
-    if (config.telegramBotToken && config.telegramChatId) {
-      await sendTelegramAlert(alert, config);
-    }
-
-    // Send to Discord if configured
-    if (config.discordWebhookUrl) {
-      await sendDiscordAlert(alert, config);
-    }
-
-    // Record alert for rate limiting
+    await sendAlertsToChannels(alert, config);
     recordAlertSent();
 
     return true;
-  } catch (error) {
-    console.error('Error sending alert:', error);
+  } catch {
     return false;
   }
 }
 
+// Send alerts to configured channels
+async function sendAlertsToChannels(alert: AlertMessage, config: AlertConfig): Promise<void> {
+  const promises: Promise<void>[] = [];
+
+  if (config.telegramBotToken && config.telegramChatId) {
+    promises.push(sendTelegramAlert(alert, config));
+  }
+
+  if (config.discordWebhookUrl) {
+    promises.push(sendDiscordAlert(alert, config));
+  }
+
+  await Promise.allSettled(promises);
+}
+
 // Send alert to Telegram
 async function sendTelegramAlert(alert: AlertMessage, config: AlertConfig): Promise<void> {
-  try {
-    const message = formatTelegramMessage(alert);
-    const url = `https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: config.telegramChatId,
-        text: message,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true
-      })
-    });
+  const message = formatTelegramMessage(alert);
+  const url = `https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      chat_id: config.telegramChatId,
+      text: message,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true
+    })
+  });
 
-    if (!response.ok) {
-      throw new Error(`Telegram API error: ${response.status}`);
-    }
-
-    console.log('Telegram alert sent successfully');
-  } catch (error) {
-    console.error('Error sending Telegram alert:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Telegram API error: ${response.status}`);
   }
 }
 
 // Send alert to Discord
 async function sendDiscordAlert(alert: AlertMessage, config: AlertConfig): Promise<void> {
-  try {
-    const embed = formatDiscordEmbed(alert);
-    const url = config.discordWebhookUrl!;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        embeds: [embed]
-      })
-    });
+  const embed = formatDiscordEmbed(alert);
+  const url = config.discordWebhookUrl!;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      embeds: [embed]
+    })
+  });
 
-    if (!response.ok) {
-      throw new Error(`Discord API error: ${response.status}`);
-    }
-
-    console.log('Discord alert sent successfully');
-  } catch (error) {
-    console.error('Error sending Discord alert:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Discord API error: ${response.status}`);
   }
 }
 
@@ -224,17 +211,14 @@ function isRateLimitAllowed(): boolean {
   const now = Date.now();
   const config = getAlertConfig();
   
-  // Reset counter if hour has passed
   if (now - lastAlertTime > 3600000) {
     alertCount = 0;
   }
   
-  // Check if we're under the limit
   if (alertCount >= config.maxAlertsPerHour) {
     return false;
   }
   
-  // Check cooldown
   if (now - lastAlertTime < config.cooldownMs) {
     return false;
   }

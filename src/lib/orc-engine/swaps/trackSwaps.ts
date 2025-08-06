@@ -1,6 +1,6 @@
 // ORC Swap Tracker - following 0rug.com coding guidelines
 
-import { PublicKey, Connection } from '@solana/web3.js';
+import { Connection, VersionedTransactionResponse } from '@solana/web3.js';
 import { createORCConnection, executeORCOperation } from '../shared/solana';
 import { SwapAlert } from '../shared/types';
 import { ORC_PROGRAM_ID } from '../shared/orcConstants';
@@ -16,104 +16,147 @@ export async function trackSwaps(): Promise<SwapAlert[]> {
 // Get recent swaps from ORC program
 async function getRecentSwaps(connection: Connection): Promise<SwapAlert[]> {
   try {
-    // Get recent signatures for ORC program
     const signatures = await connection.getSignaturesForAddress(
       ORC_PROGRAM_ID,
       { limit: 20 }
     );
 
-    const swaps: SwapAlert[] = [];
-
-    // Process each signature to find swap transactions
-    for (const sig of signatures) {
-      try {
-        const tx = await connection.getTransaction(sig.signature, {
-          maxSupportedTransactionVersion: 0
-        });
-        
-        if (tx && isSwapTransaction(tx)) {
-          const swapData = extractSwapDataFromTx(tx);
-          if (swapData) {
-            swaps.push(swapData);
-          }
-        }
-      } catch (error) {
-        console.warn(`Error processing signature ${sig.signature}:`, error);
-      }
+    return await processSwapSignatures(connection, signatures);
+      } catch {
+      return [];
     }
+}
 
-    return swaps;
-  } catch (error) {
-    console.error('Error tracking swaps:', error);
-    throw error;
+// Process swap signatures to extract swap data
+async function processSwapSignatures(
+  connection: Connection,
+  signatures: Array<{ signature: string }>
+): Promise<SwapAlert[]> {
+  const swaps: SwapAlert[] = [];
+
+  for (const sig of signatures) {
+    try {
+      const swapData = await extractSwapFromSignature(connection, sig.signature);
+      if (swapData) {
+        swaps.push(swapData);
+      }
+    } catch {
+      // Silently continue processing other signatures
+    }
   }
+
+  return swaps;
+}
+
+// Extract swap data from a single signature
+async function extractSwapFromSignature(
+  connection: Connection,
+  signature: string
+): Promise<SwapAlert | null> {
+  const tx = await connection.getTransaction(signature, {
+    maxSupportedTransactionVersion: 0
+  });
+  
+  if (!tx || !isSwapTransaction(tx)) {
+    return null;
+  }
+
+  return extractSwapDataFromTx(tx, signature);
 }
 
 // Check if transaction is a swap
-function isSwapTransaction(tx: any): boolean {
-  // Check for swap-related log messages
-  return tx?.meta?.logMessages?.some((log: string) => 
+function isSwapTransaction(tx: VersionedTransactionResponse): boolean {
+  const logs = tx.meta?.logMessages || [];
+  return logs.some((log: string) => 
     log.includes('Swap') || log.includes('Exchange')
-  ) || false;
+  );
 }
 
 // Extract swap data from transaction
-function extractSwapDataFromTx(tx: any): SwapAlert | null {
+function extractSwapDataFromTx(
+  tx: VersionedTransactionResponse,
+  signature: string
+): SwapAlert | null {
   try {
     const logs = tx.meta?.logMessages || [];
+    const swapInfo = parseSwapLogs(logs);
     
-    // Extract basic swap information
-    const swapData: SwapAlert = {
-      dexName: 'ORC',
-      tokenIn: 'Unknown',
-      tokenOut: 'Unknown',
-      amountIn: 0,
-      amountOut: 0,
-      swapSize: 0,
-      sizeCategory: 'small',
-      transactionHash: tx.transaction.signatures[0] || '',
-      timestamp: new Date().toISOString(),
-      riskLevel: 'low',
-      alertType: 'swap'
-    };
+    if (!swapInfo.tokenIn || !swapInfo.tokenOut) {
+      return null;
+    }
 
-    // Parse logs for swap details
-    for (const log of logs) {
-      if (log.includes('Swap')) {
-        // Extract token information
-        const tokenMatch = log.match(/([A-Za-z0-9]{32,44})/g);
-        if (tokenMatch && tokenMatch.length >= 2) {
-          swapData.tokenIn = tokenMatch[0];
-          swapData.tokenOut = tokenMatch[1];
-        }
+    const swapData = createSwapAlert(swapInfo, signature);
+    return categorizeSwapSize(swapData);
+      } catch {
+      return null;
+    }
+}
 
-        // Extract amount information
-        const amountMatch = log.match(/(\d+(?:\.\d+)?)/);
-        if (amountMatch) {
-          swapData.amountIn = parseFloat(amountMatch[1]);
-          swapData.swapSize = swapData.amountIn;
-        }
+// Parse swap logs to extract token and amount information
+function parseSwapLogs(logs: string[]): {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: number;
+} {
+  let tokenIn = '';
+  let tokenOut = '';
+  let amountIn = 0;
+
+  for (const log of logs) {
+    if (log.includes('Swap')) {
+      const tokenMatch = log.match(/([A-Za-z0-9]{32,44})/g);
+      if (tokenMatch && tokenMatch.length >= 2) {
+        tokenIn = tokenMatch[0];
+        tokenOut = tokenMatch[1];
+      }
+
+      const amountMatch = log.match(/(\d+(?:\.\d+)?)/);
+      if (amountMatch) {
+        amountIn = parseFloat(amountMatch[1]);
       }
     }
-
-    // Determine size category
-    if (swapData.swapSize > 10000) {
-      swapData.sizeCategory = 'whale';
-      swapData.riskLevel = 'high';
-    } else if (swapData.swapSize > 1000) {
-      swapData.sizeCategory = 'large';
-      swapData.riskLevel = 'medium';
-    } else if (swapData.swapSize > 100) {
-      swapData.sizeCategory = 'medium';
-      swapData.riskLevel = 'low';
-    } else {
-      swapData.sizeCategory = 'small';
-      swapData.riskLevel = 'low';
-    }
-
-    return swapData;
-  } catch (error) {
-    console.warn('Error extracting swap data:', error);
-    return null;
   }
+
+  return { tokenIn, tokenOut, amountIn };
+}
+
+// Create base swap alert
+function createSwapAlert(
+  swapInfo: { tokenIn: string; tokenOut: string; amountIn: number },
+  signature: string
+): SwapAlert {
+  return {
+    dexName: 'ORC',
+    tokenIn: swapInfo.tokenIn,
+    tokenOut: swapInfo.tokenOut,
+    amountIn: swapInfo.amountIn,
+    amountOut: 0,
+    swapSize: swapInfo.amountIn,
+    sizeCategory: 'small',
+    transactionHash: signature,
+    timestamp: new Date().toISOString(),
+    riskLevel: 'low',
+    alertType: 'swap'
+  };
+}
+
+// Categorize swap size and set risk level
+function categorizeSwapSize(swapData: SwapAlert): SwapAlert {
+  const { swapSize } = swapData;
+
+  if (swapSize > 10000) {
+    swapData.sizeCategory = 'whale';
+    swapData.riskLevel = 'high';
+  } else if (swapSize > 1000) {
+    swapData.sizeCategory = 'large';
+    swapData.riskLevel = 'medium';
+  } else if (swapSize > 100) {
+    swapData.sizeCategory = 'medium';
+    swapData.riskLevel = 'low';
+  } else {
+    swapData.sizeCategory = 'small';
+    swapData.riskLevel = 'low';
+  }
+
+  return swapData;
 } 

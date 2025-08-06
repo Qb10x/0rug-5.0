@@ -3,13 +3,8 @@
 import React from 'react';
 import { ThemeToggleWithText } from '@/components/ui/ThemeToggle';
 
-// Appearance settings props
-interface AppearanceSettingsProps {
-  theme: string;
-}
-
 // Appearance settings component
-export function AppearanceSettings({ theme }: AppearanceSettingsProps) {
+export function AppearanceSettings() {
   return (
     <div className="space-y-6">
       <div>

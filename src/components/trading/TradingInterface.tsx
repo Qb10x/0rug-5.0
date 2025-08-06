@@ -1,10 +1,11 @@
 // Trading Interface Component - following 0rug.com coding guidelines
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { TradingState, Token } from './TradingState';
 import { TokenSelector } from './TokenSelector';
+import { RiskAssessment } from './RiskAssessment';
 
 // Trading interface props
 interface TradingInterfaceProps {
@@ -33,6 +34,89 @@ export function TradingInterface({
     return num.toFixed(2);
   };
 
+  // Calculate risk score based on trading state
+  const calculateRiskScore = (state: TradingState): number => {
+    if (!state.quote) return 50;
+    
+    let score = 50; // Base score
+    
+    // Price impact factor
+    if (state.quote.priceImpact > 5) score += 30;
+    else if (state.quote.priceImpact > 2) score += 15;
+    else if (state.quote.priceImpact < 0.5) score -= 10;
+    
+    // Amount factor
+    const amount = parseFloat(state.inputAmount || '0');
+    if (amount > 10000) score += 20;
+    else if (amount > 1000) score += 10;
+    else if (amount < 100) score -= 5;
+    
+    // Route complexity factor
+    if (state.quote.route.length > 3) score += 10;
+    
+    return Math.max(0, Math.min(100, score));
+  };
+
+  // Calculate risk level based on score
+  const calculateRiskLevel = (state: TradingState): 'low' | 'medium' | 'high' => {
+    const score = calculateRiskScore(state);
+    if (score < 30) return 'low';
+    if (score < 70) return 'medium';
+    return 'high';
+  };
+
+  // Get risk factors based on trading state
+  const getRiskFactors = (state: TradingState): string[] => {
+    const factors: string[] = [];
+    
+    if (!state.quote) return factors;
+    
+    if (state.quote.priceImpact > 5) {
+      factors.push('High price impact detected');
+    }
+    
+    const amount = parseFloat(state.inputAmount || '0');
+    if (amount > 10000) {
+      factors.push('Large trade size');
+    }
+    
+    if (state.quote.route.length > 3) {
+      factors.push('Complex routing path');
+    }
+    
+    if (state.quote.fee > 100) {
+      factors.push('High transaction fees');
+    }
+    
+    return factors;
+  };
+
+  // Get recommendations based on trading state
+  const getRecommendations = (state: TradingState): string[] => {
+    const recommendations: string[] = [];
+    
+    if (!state.quote) return recommendations;
+    
+    if (state.quote.priceImpact > 5) {
+      recommendations.push('Consider smaller trade size');
+    }
+    
+    if (state.quote.priceImpact < 0.5) {
+      recommendations.push('Good price impact - safe to proceed');
+    }
+    
+    const amount = parseFloat(state.inputAmount || '0');
+    if (amount > 10000) {
+      recommendations.push('Monitor for slippage');
+    }
+    
+    if (state.quote.route.length > 3) {
+      recommendations.push('Consider alternative routes');
+    }
+    
+    return recommendations;
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -47,8 +131,6 @@ export function TradingInterface({
                 selectedToken={tradingState.inputToken}
                 onTokenSelect={(address) => onTokenSelect(address, true)}
                 supportedTokens={supportedTokens}
-                placeholder="Select token"
-                isInput={true}
               />
               <input
                 type="number"
@@ -81,8 +163,6 @@ export function TradingInterface({
                 selectedToken={tradingState.outputToken}
                 onTokenSelect={(address) => onTokenSelect(address, false)}
                 supportedTokens={supportedTokens}
-                placeholder="Select token"
-                isInput={false}
               />
               <input
                 type="number"
@@ -116,6 +196,20 @@ export function TradingInterface({
                 <span className="text-blue-500">{tradingState.quote.route.join(' → ')}</span>
               </div>
             </motion.div>
+          )}
+
+          {/* Risk Assessment */}
+          {tradingState.quote && tradingState.inputAmount && (
+            <RiskAssessment
+              inputToken={tradingState.inputToken}
+              outputToken={tradingState.outputToken}
+              amount={parseFloat(tradingState.inputAmount)}
+              riskScore={calculateRiskScore(tradingState)}
+              riskLevel={calculateRiskLevel(tradingState)}
+              riskFactors={getRiskFactors(tradingState)}
+              recommendations={getRecommendations(tradingState)}
+              isLoading={tradingState.isLoading}
+            />
           )}
 
           {/* Error Message */}

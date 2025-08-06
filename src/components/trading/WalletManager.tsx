@@ -1,6 +1,6 @@
 // Wallet Manager Component - following 0rug.com coding guidelines
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, LogOut, Zap } from 'lucide-react';
 import { WalletState, WalletModalState } from './TradingState';

@@ -2,7 +2,7 @@
 
 import { PublicKey, Connection, VersionedTransactionResponse } from '@solana/web3.js';
 import { createORCConnection, executeORCOperation } from '../shared/solana';
-import { PoolData, SolanaTransaction } from '../shared/types';
+import { PoolData } from '../shared/types';
 import { ORC_PROGRAM_ID } from '../shared/orcConstants';
 
 // Detect new liquidity pools using ORC data
@@ -16,60 +16,79 @@ export async function detectNewPools(): Promise<PoolData[]> {
 // Scan for new pools using ORC program signatures
 async function scanForNewPools(connection: Connection): Promise<PoolData[]> {
   try {
-    // Get recent signatures for ORC program using PublicKey
     const signatures = await connection.getSignaturesForAddress(
       ORC_PROGRAM_ID,
       { limit: 10 }
     );
 
-    const pools: PoolData[] = [];
-
-    // Process each signature to find pool creation
-    for (const sig of signatures) {
-      try {
-        const tx = await connection.getTransaction(sig.signature, {
-          maxSupportedTransactionVersion: 0
-        });
-        
-        if (tx && isPoolCreationTransaction(tx)) {
-          const poolAddress = extractPoolAddressFromTx(tx);
-          if (poolAddress) {
-            const poolData = await enrichPoolData(connection, poolAddress);
-            pools.push(poolData);
-          }
-        }
-      } catch (error) {
-        console.warn(`Error processing signature ${sig.signature}:`, error);
-      }
+    return await processPoolSignatures(connection, signatures);
+      } catch {
+      return [];
     }
+}
 
-    return pools;
-  } catch (error) {
-    console.error('Error scanning for new pools:', error);
-    throw error;
+// Process pool signatures to extract pool data
+async function processPoolSignatures(
+  connection: Connection,
+  signatures: Array<{ signature: string }>
+): Promise<PoolData[]> {
+  const pools: PoolData[] = [];
+
+  for (const sig of signatures) {
+    try {
+      const poolData = await extractPoolFromSignature(connection, sig.signature);
+      if (poolData) {
+        pools.push(poolData);
+      }
+    } catch {
+      // Silently continue processing other signatures
+    }
   }
+
+  return pools;
+}
+
+// Extract pool data from a single signature
+async function extractPoolFromSignature(
+  connection: Connection,
+  signature: string
+): Promise<PoolData | null> {
+  const tx = await connection.getTransaction(signature, {
+    maxSupportedTransactionVersion: 0
+  });
+  
+  if (!tx || !isPoolCreationTransaction(tx)) {
+    return null;
+  }
+
+  const poolAddress = extractPoolAddressFromTx(tx);
+  if (!poolAddress) {
+    return null;
+  }
+
+  return await enrichPoolData(connection, poolAddress);
 }
 
 // Check if transaction is pool creation
 function isPoolCreationTransaction(tx: VersionedTransactionResponse): boolean {
-  // Check for ORC program instructions in log messages
-  return tx?.meta?.logMessages?.some((log: string) => 
+  const logs = tx.meta?.logMessages || [];
+  return logs.some((log: string) => 
     log.includes('Initialize') || log.includes('CreatePool')
-  ) || false;
+  );
 }
 
 // Extract pool address from transaction
 function extractPoolAddressFromTx(tx: VersionedTransactionResponse): string | null {
   try {
-    // Look for pool address in log messages
     const logs = tx.meta?.logMessages || [];
+    
     for (const log of logs) {
       if (log.includes('Pool created') || log.includes('Address:')) {
-        // Extract address from log
         const match = log.match(/Address:\s*([A-Za-z0-9]{32,44})/);
         return match ? match[1] : null;
       }
     }
+    
     return null;
   } catch {
     return null;
@@ -80,36 +99,44 @@ function extractPoolAddressFromTx(tx: VersionedTransactionResponse): string | nu
 async function enrichPoolData(connection: Connection, poolAddress: string): Promise<PoolData> {
   try {
     const publicKey = new PublicKey(poolAddress);
-    const accountInfo = await connection.getAccountInfo(publicKey);
+    await connection.getAccountInfo(publicKey);
     
-    return {
-      address: poolAddress,
-      tokenA: 'Unknown', // Would need to parse from account data
-      tokenB: 'Unknown',
-      liquidity: 0,
-      volume24h: 0,
-      riskScore: calculatePoolRiskScore(0, 0),
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString()
-    };
-  } catch (error) {
-    console.warn(`Error enriching pool data for ${poolAddress}:`, error);
-    return {
-      address: poolAddress,
-      tokenA: 'Unknown',
-      tokenB: 'Unknown',
-      liquidity: 0,
-      volume24h: 0,
-      riskScore: calculatePoolRiskScore(0, 0),
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString()
-    };
+    return createPoolData(poolAddress);
+  } catch {
+    return createDefaultPoolData(poolAddress);
   }
+}
+
+// Create pool data with default values
+function createPoolData(poolAddress: string): PoolData {
+  return {
+    address: poolAddress,
+    tokenA: 'Unknown',
+    tokenB: 'Unknown',
+    liquidity: 0,
+    volume24h: 0,
+    riskScore: calculatePoolRiskScore(0, 0),
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+// Create default pool data for errors
+function createDefaultPoolData(poolAddress: string): PoolData {
+  return {
+    address: poolAddress,
+    tokenA: 'Unknown',
+    tokenB: 'Unknown',
+    liquidity: 0,
+    volume24h: 0,
+    riskScore: calculatePoolRiskScore(0, 0),
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
+  };
 }
 
 // Calculate pool risk score based on liquidity and volume
 function calculatePoolRiskScore(liquidity: number, volume24h: number): number {
-  // Simple risk calculation (0-100 scale)
   let score = 50; // Base score
   
   if (liquidity > 1000000) score += 20; // High liquidity

@@ -1,6 +1,6 @@
 // ORC Whale Tracker - following 0rug.com coding guidelines
 
-import { PublicKey, Connection } from '@solana/web3.js';
+import { Connection, VersionedTransactionResponse } from '@solana/web3.js';
 import { createORCConnection, executeORCOperation } from '../shared/solana';
 import { WhaleAlert } from '../shared/types';
 import { ORC_PROGRAM_ID } from '../shared/orcConstants';
@@ -16,93 +16,135 @@ export async function trackWhaleMovements(): Promise<WhaleAlert[]> {
 // Get whale activity from ORC program
 async function getWhaleActivity(connection: Connection): Promise<WhaleAlert[]> {
   try {
-    // Get recent signatures for ORC program
     const signatures = await connection.getSignaturesForAddress(
       ORC_PROGRAM_ID,
       { limit: 50 }
     );
 
-    const whaleAlerts: WhaleAlert[] = [];
-
-    // Process each signature to find whale transactions
-    for (const sig of signatures) {
-      try {
-        const tx = await connection.getTransaction(sig.signature, {
-          maxSupportedTransactionVersion: 0
-        });
-        
-        if (tx && isWhaleTransaction(tx)) {
-          const whaleData = extractWhaleDataFromTx(tx);
-          if (whaleData) {
-            whaleAlerts.push(whaleData);
-          }
-        }
-      } catch (error) {
-        console.warn(`Error processing signature ${sig.signature}:`, error);
-      }
+    return await processWhaleSignatures(connection, signatures);
+      } catch {
+      return [];
     }
+}
 
-    return whaleAlerts;
-  } catch (error) {
-    console.error('Error tracking whale movements:', error);
-    throw error;
+// Process whale signatures to extract whale data
+async function processWhaleSignatures(
+  connection: Connection,
+  signatures: Array<{ signature: string }>
+): Promise<WhaleAlert[]> {
+  const whaleAlerts: WhaleAlert[] = [];
+
+  for (const sig of signatures) {
+    try {
+      const whaleData = await extractWhaleFromSignature(connection, sig.signature);
+      if (whaleData) {
+        whaleAlerts.push(whaleData);
+      }
+    } catch {
+      // Silently continue processing other signatures
+    }
   }
+
+  return whaleAlerts;
+}
+
+// Extract whale data from a single signature
+async function extractWhaleFromSignature(
+  connection: Connection,
+  signature: string
+): Promise<WhaleAlert | null> {
+  const tx = await connection.getTransaction(signature, {
+    maxSupportedTransactionVersion: 0
+  });
+  
+  if (!tx || !isWhaleTransaction(tx)) {
+    return null;
+  }
+
+  return extractWhaleDataFromTx(tx, signature);
 }
 
 // Check if transaction involves whale activity
-function isWhaleTransaction(tx: any): boolean {
-  // Check for large transactions in log messages
-  return tx?.meta?.logMessages?.some((log: string) => 
-    log.includes('Transfer') && log.includes('large') ||
-    log.includes('Swap') && log.includes('amount')
-  ) || false;
+function isWhaleTransaction(tx: VersionedTransactionResponse): boolean {
+  const logs = tx.meta?.logMessages || [];
+  return logs.some((log: string) => 
+    (log.includes('Transfer') && log.includes('large')) ||
+    (log.includes('Swap') && log.includes('amount'))
+  );
 }
 
 // Extract whale data from transaction
-function extractWhaleDataFromTx(tx: any): WhaleAlert | null {
+function extractWhaleDataFromTx(
+  tx: VersionedTransactionResponse,
+  signature: string
+): WhaleAlert | null {
   try {
     const logs = tx.meta?.logMessages || [];
+    const whaleInfo = parseWhaleLogs(logs);
     
-    // Extract basic whale information
-    const whaleData: WhaleAlert = {
-      whaleAddress: 'Unknown',
-      operation: 'transfer',
-      amount: 0,
-      transactionHash: tx.transaction.signatures[0] || '',
-      timestamp: new Date().toISOString(),
-      riskLevel: 'low',
-      alertType: 'whale_movement'
-    };
+    if (!whaleInfo.whaleAddress || whaleInfo.amount === 0) {
+      return null;
+    }
 
-    // Parse logs for whale details
-    for (const log of logs) {
-      if (log.includes('Transfer')) {
-        // Extract whale address
-        const addressMatch = log.match(/([A-Za-z0-9]{32,44})/);
-        if (addressMatch) {
-          whaleData.whaleAddress = addressMatch[1];
-        }
+    const whaleData = createWhaleAlert(whaleInfo, signature);
+    return categorizeWhaleRisk(whaleData);
+      } catch {
+      return null;
+    }
+}
 
-        // Extract amount
-        const amountMatch = log.match(/(\d+(?:\.\d+)?)/);
-        if (amountMatch) {
-          whaleData.amount = parseFloat(amountMatch[1]);
-        }
+// Parse whale logs to extract whale information
+function parseWhaleLogs(logs: string[]): {
+  whaleAddress: string;
+  amount: number;
+} {
+  let whaleAddress = '';
+  let amount = 0;
+
+  for (const log of logs) {
+    if (log.includes('Transfer')) {
+      const addressMatch = log.match(/([A-Za-z0-9]{32,44})/);
+      if (addressMatch) {
+        whaleAddress = addressMatch[1];
+      }
+
+      const amountMatch = log.match(/(\d+(?:\.\d+)?)/);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1]);
       }
     }
-
-    // Determine risk level based on amount
-    if (whaleData.amount > 100000) {
-      whaleData.riskLevel = 'high';
-    } else if (whaleData.amount > 10000) {
-      whaleData.riskLevel = 'medium';
-    } else {
-      whaleData.riskLevel = 'low';
-    }
-
-    return whaleData;
-  } catch (error) {
-    console.warn('Error extracting whale data:', error);
-    return null;
   }
+
+  return { whaleAddress, amount };
+}
+
+// Create base whale alert
+function createWhaleAlert(
+  whaleInfo: { whaleAddress: string; amount: number },
+  signature: string
+): WhaleAlert {
+  return {
+    whaleAddress: whaleInfo.whaleAddress,
+    operation: 'transfer',
+    amount: whaleInfo.amount,
+    transactionHash: signature,
+    timestamp: new Date().toISOString(),
+    riskLevel: 'low',
+    alertType: 'whale_movement'
+  };
+}
+
+// Categorize whale risk based on amount
+function categorizeWhaleRisk(whaleData: WhaleAlert): WhaleAlert {
+  const { amount } = whaleData;
+
+  if (amount > 100000) {
+    whaleData.riskLevel = 'high';
+  } else if (amount > 10000) {
+    whaleData.riskLevel = 'medium';
+  } else {
+    whaleData.riskLevel = 'low';
+  }
+
+  return whaleData;
 } 

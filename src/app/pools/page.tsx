@@ -9,10 +9,9 @@ import {
   AlertTriangle, 
   TrendingUp,
   RefreshCw,
-  Search,
-  Filter
+  Search
 } from 'lucide-react';
-import { detectNewPools } from '@/lib/orc-engine/pools/detectNewPools';
+
 
 // Pool interface
 interface Pool {
@@ -69,8 +68,8 @@ export default function PoolsPage() {
       ];
       
       setPools(mockPools);
-    } catch (error) {
-      console.error('Error loading pools:', error);
+    } catch {
+      // Handle error silently for now
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +138,7 @@ export default function PoolsPage() {
             </div>
             <select
               value={filterRisk}
-              onChange={(e) => setFilterRisk(e.target.value as any)}
+              onChange={(e) => setFilterRisk(e.target.value as 'all' | 'low' | 'medium' | 'high')}
               className="px-4 py-3 bg-input border border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors duration-200"
             >
               <option value="all">All Risk Levels</option>

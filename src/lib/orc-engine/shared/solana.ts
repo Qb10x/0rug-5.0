@@ -18,7 +18,7 @@ async function ensureRPCManagerInitialized(): Promise<void> {
 // Create resilient ORC connection with smart RPC rotation
 export async function createORCConnection(): Promise<Connection> {
   await ensureRPCManagerInitialized();
-  const bestProvider = rpcManager.getBestProvider('orc');
+  const bestProvider = rpcManager.getBestProvider();
   const connection = rpcManager.createConnection(bestProvider);
   
   // Record the request for rate limiting
@@ -30,7 +30,7 @@ export async function createORCConnection(): Promise<Connection> {
 // Create connection for specific operation type
 export async function createConnectionForOperation(operation: string): Promise<Connection> {
   await ensureRPCManagerInitialized();
-  const bestProvider = rpcManager.getBestProvider(operation);
+  const bestProvider = rpcManager.getBestProvider();
   const connection = rpcManager.createConnection(bestProvider);
   
   // Record the request for rate limiting
@@ -55,47 +55,62 @@ export async function executeORCOperation<T>(
   maxRetries: number = ORC_CONNECTION_CONFIG.maxRetries
 ): Promise<T> {
   let lastError: Error;
-  let attempts = 0;
 
-  while (attempts < maxRetries) {
+  for (let attempts = 0; attempts < maxRetries; attempts++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      attempts++;
 
-      // If it's an RPC error, try switching providers
-      if (isRPCError(error) && attempts < maxRetries) {
-        console.warn(`RPC error on attempt ${attempts}, retrying with different provider...`);
-        await new Promise(resolve => setTimeout(resolve, ORC_CONNECTION_CONFIG.maxBackoffMs));
+      if (shouldRetryWithDifferentProvider(error, attempts + 1, maxRetries)) {
+        await handleRPCError(attempts);
         continue;
       }
 
-      // If we've exhausted retries, throw the error
-      if (attempts >= maxRetries) {
-        break;
-      }
 
-      // Exponential backoff
-      const backoffMs = Math.min(
-        ORC_CONNECTION_CONFIG.backoffMultiplier ** attempts * 1000,
-        ORC_CONNECTION_CONFIG.maxBackoffMs
-      );
-      await new Promise(resolve => setTimeout(resolve, backoffMs));
+
+      await performExponentialBackoff(attempts);
     }
   }
 
   throw lastError!;
 }
 
+// Check if we should retry with a different provider
+function shouldRetryWithDifferentProvider(
+  error: unknown,
+  attempts: number,
+  maxRetries: number
+): boolean {
+  return isRPCError(error) && attempts < maxRetries;
+}
+
+// Handle RPC error by waiting before retry
+async function handleRPCError(attempts: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ORC_CONNECTION_CONFIG.maxBackoffMs));
+}
+
+// Perform exponential backoff
+async function performExponentialBackoff(attempts: number): Promise<void> {
+  const backoffMs = Math.min(
+    ORC_CONNECTION_CONFIG.backoffMultiplier ** attempts * 1000,
+    ORC_CONNECTION_CONFIG.maxBackoffMs
+  );
+  await new Promise(resolve => setTimeout(resolve, backoffMs));
+}
+
 // Check if error is RPC-related
-function isRPCError(error: any): boolean {
-  const errorMessage = error?.message || error?.toString() || '';
-  return errorMessage.includes('403') || 
-         errorMessage.includes('429') || 
-         errorMessage.includes('rate limit') ||
-         errorMessage.includes('timeout') ||
-         errorMessage.includes('connection');
+function isRPCError(error: unknown): boolean {
+  const errorMessage = String(error);
+  const rpcErrorPatterns = [
+    '403',
+    '429',
+    'rate limit',
+    'timeout',
+    'connection'
+  ];
+  
+  return rpcErrorPatterns.some(pattern => errorMessage.includes(pattern));
 }
 
 // Test ORC connection health with RPC rotation

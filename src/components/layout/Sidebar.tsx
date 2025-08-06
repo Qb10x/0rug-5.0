@@ -5,10 +5,6 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  BarChart3, 
-  Users, 
-  TrendingUp, 
-  Shield, 
   Zap, 
   Bot,
   Home,
@@ -29,10 +25,20 @@ interface NavItem {
   badge?: string;
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  onCollapseChange?: (collapsed: boolean) => void;
+}
+
+export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const pathname = usePathname();
+
+  // Handle collapse state change
+  const handleCollapseChange = (collapsed: boolean) => {
+    setIsCollapsed(collapsed);
+    onCollapseChange?.(collapsed);
+  };
 
   // Navigation items
   const navItems: NavItem[] = [
@@ -45,56 +51,19 @@ export default function Sidebar() {
       color: 'from-purple-500 to-blue-500'
     },
     {
-      id: 'pools',
-      title: 'LP Pool Scanner',
-      description: 'Real-time pool detection',
-      icon: <BarChart3 className="w-5 h-5" />,
-      href: '/pools',
-      color: 'from-blue-500 to-cyan-500',
-      badge: 'Live'
-    },
-    {
-      id: 'whales',
-      title: 'Whale Tracker',
-      description: 'Monitor large movements',
-      icon: <Users className="w-5 h-5" />,
-      href: '/whales',
-      color: 'from-purple-500 to-pink-500',
-      badge: 'Live'
-    },
-
-    {
-      id: 'tokens',
-      title: 'Token Profiles',
-      description: 'Token analytics',
-      icon: <TrendingUp className="w-5 h-5" />,
-      href: '/tokens',
-      color: 'from-orange-500 to-red-500',
-      badge: 'Live'
-    },
-    {
-      id: 'risk',
-      title: 'Risk Score',
-      description: 'Pool risk assessment',
-      icon: <Shield className="w-5 h-5" />,
-      href: '/risk',
-      color: 'from-yellow-500 to-orange-500',
-      badge: 'Live'
-    },
-    {
       id: 'trading',
-      title: 'Jupiter Trading',
-      description: 'Real trading with fees',
-      icon: <Zap className="w-5 h-5" />,
+      title: 'MemeBot Chat',
+      description: 'AI-powered token analysis',
+      icon: <Bot className="w-5 h-5" />,
       href: '/trading',
       color: 'from-indigo-500 to-purple-500',
-      badge: 'Live'
+      badge: 'AI'
     },
     {
       id: 'alerts',
       title: 'Real-Time Alerts',
       description: 'Telegram & Discord',
-      icon: <Bot className="w-5 h-5" />,
+      icon: <Zap className="w-5 h-5" />,
       href: '/alerts',
       color: 'from-teal-500 to-cyan-500',
       badge: 'Live'
@@ -149,7 +118,7 @@ export default function Sidebar() {
           
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
+              onClick={() => handleCollapseChange(!isCollapsed)}
               className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 text-sidebar-foreground"
             >
               {isCollapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}

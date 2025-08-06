@@ -1,6 +1,6 @@
 // ORC Engine Types - following 0rug.com coding guidelines
 
-import { PublicKey, VersionedTransactionResponse, VersionedMessage, CompiledInstruction } from '@solana/web3.js';
+import { PublicKey, VersionedTransactionResponse, CompiledInstruction } from '@solana/web3.js';
 
 // Pool data interface
 export interface PoolData {

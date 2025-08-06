@@ -12,7 +12,7 @@ import {
   Eye,
   BarChart3
 } from 'lucide-react';
-import { trackSwaps } from '@/lib/orc-engine/swaps/trackSwaps';
+
 
 // Swap interface
 interface Swap {
@@ -76,8 +76,8 @@ export default function SwapsPage() {
       ];
       
       setSwaps(mockSwaps);
-    } catch (error) {
-      console.error('Error loading swaps:', error);
+    } catch {
+      // Handle error silently for now
     } finally {
       setIsLoading(false);
     }

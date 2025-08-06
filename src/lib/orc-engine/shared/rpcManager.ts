@@ -21,63 +21,19 @@ class RPCManager {
 
   // Initialize RPC manager with providers
   async initialize(): Promise<void> {
-    this.providers = [
-      {
-        name: 'Helius',
-        url: process.env.HELIUS_RPC_URL || 'https://rpc.helius.xyz/?api-key=your-api-key',
-        weight: 3,
-        requestCount: 0,
-        lastRequestTime: 0,
-        isHealthy: true
-      },
-      {
-        name: 'QuickNode',
-        url: process.env.QUICKNODE_RPC_URL || 'https://your-endpoint.solana-mainnet.quiknode.pro/your-api-key/',
-        weight: 2,
-        requestCount: 0,
-        lastRequestTime: 0,
-        isHealthy: true
-      },
-      {
-        name: 'Alchemy',
-        url: process.env.ALCHEMY_RPC_URL || 'https://solana-mainnet.g.alchemy.com/v2/your-api-key',
-        weight: 2,
-        requestCount: 0,
-        lastRequestTime: 0,
-        isHealthy: true
-      },
-      {
-        name: 'Public RPC',
-        url: 'https://api.mainnet-beta.solana.com',
-        weight: 1,
-        requestCount: 0,
-        lastRequestTime: 0,
-        isHealthy: true
-      }
-    ];
-
-    // Start health monitoring
+    this.providers = createDefaultProviders();
     this.startHealthMonitoring();
   }
 
   // Get best provider for operation type
-  getBestProvider(operation: string): RPCProvider {
-    // Filter healthy providers
+  getBestProvider(): RPCProvider {
     const healthyProviders = this.providers.filter(p => p.isHealthy);
     
     if (healthyProviders.length === 0) {
-      // If no healthy providers, return first one
       return this.providers[0];
     }
 
-    // Sort by weight and request count
-    const sortedProviders = healthyProviders.sort((a, b) => {
-      const aScore = a.weight / (a.requestCount + 1);
-      const bScore = b.weight / (b.requestCount + 1);
-      return bScore - aScore;
-    });
-
-    return sortedProviders[0];
+    return selectBestProvider(healthyProviders);
   }
 
   // Create connection with best provider
@@ -110,8 +66,7 @@ class RPCManager {
         const connection = new Connection(provider.url);
         const blockHeight = await connection.getBlockHeight();
         provider.isHealthy = blockHeight > 0;
-      } catch (error) {
-        console.warn(`Health check failed for ${provider.name}:`, error);
+      } catch {
         provider.isHealthy = false;
       }
     }
@@ -142,6 +97,55 @@ class RPCManager {
       clearInterval(this.healthCheckInterval);
     }
   }
+}
+
+// Create default RPC providers
+function createDefaultProviders(): RPCProvider[] {
+  return [
+    {
+      name: 'Helius',
+      url: process.env.HELIUS_RPC_URL || 'https://rpc.helius.xyz/?api-key=your-api-key',
+      weight: 3,
+      requestCount: 0,
+      lastRequestTime: 0,
+      isHealthy: true
+    },
+    {
+      name: 'QuickNode',
+      url: process.env.QUICKNODE_RPC_URL || 'https://your-endpoint.solana-mainnet.quiknode.pro/your-api-key/',
+      weight: 2,
+      requestCount: 0,
+      lastRequestTime: 0,
+      isHealthy: true
+    },
+    {
+      name: 'Alchemy',
+      url: process.env.ALCHEMY_RPC_URL || 'https://solana-mainnet.g.alchemy.com/v2/your-api-key',
+      weight: 2,
+      requestCount: 0,
+      lastRequestTime: 0,
+      isHealthy: true
+    },
+    {
+      name: 'Public RPC',
+      url: 'https://api.mainnet-beta.solana.com',
+      weight: 1,
+      requestCount: 0,
+      lastRequestTime: 0,
+      isHealthy: true
+    }
+  ];
+}
+
+// Select best provider based on weight and request count
+function selectBestProvider(providers: RPCProvider[]): RPCProvider {
+  const sortedProviders = providers.sort((a, b) => {
+    const aScore = a.weight / (a.requestCount + 1);
+    const bScore = b.weight / (b.requestCount + 1);
+    return bScore - aScore;
+  });
+
+  return sortedProviders[0];
 }
 
 // Export singleton instance

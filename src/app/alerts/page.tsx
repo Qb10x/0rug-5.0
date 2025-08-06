@@ -12,7 +12,7 @@ import {
   Eye,
   MessageSquare
 } from 'lucide-react';
-import { sendAlert } from '@/lib/orc-engine/alerts/alertSender';
+
 
 // Alert interface
 interface Alert {
@@ -72,8 +72,8 @@ export default function AlertsPage() {
       ];
       
       setAlerts(mockAlerts);
-    } catch (error) {
-      console.error('Error loading alerts:', error);
+    } catch {
+      // Handle error silently for now
     } finally {
       setIsLoading(false);
     }

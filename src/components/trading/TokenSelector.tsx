@@ -10,17 +10,13 @@ interface TokenSelectorProps {
   selectedToken: string;
   onTokenSelect: (tokenAddress: string) => void;
   supportedTokens: Token[];
-  placeholder: string;
-  isInput: boolean;
 }
 
 // Token selector component
 export function TokenSelector({
   selectedToken,
   onTokenSelect,
-  supportedTokens,
-  placeholder,
-  isInput
+  supportedTokens
 }: TokenSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +62,7 @@ export function TokenSelector({
         foundToken: mockToken,
         isSearching: false
       }));
-    } catch (error) {
+    } catch {
       setContractSearch(prev => ({
         ...prev,
         error: 'Token not found',
