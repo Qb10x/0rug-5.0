@@ -1,0 +1,155 @@
+---
+alwaysApply: true
+---
+Perfect. Here’s a **production-ready development ruleset** you can give your developer — specifically designed for your **Solana ORC-based platform**. It focuses on:
+
+* Clean code structure
+* Code readability under 3 seconds
+* File size control
+* Modular, scalable architecture
+* Linting & formatting
+* Developer discipline
+
+---
+
+## ✅ 🔧 0rug.com Code Guidelines for Solana ORC Development
+
+---
+
+### 📁 1. **Project Structure & Folder Rules**
+
+> Rule: **One feature = One folder**.
+> Each folder must contain max 1 logic module, test file, and types file (if needed).
+
+```bash
+orc-engine/
+├── pools/                   # LP detection & data
+│   ├── detectNewPools.ts
+│   ├── fetchPoolData.ts
+│   └── types.ts
+├── whales/                  # Whale LP monitor
+│   ├── trackWhales.ts
+│   ├── scoreWallet.ts
+│   └── types.ts
+├── alerts/                  # Realtime alert engine
+│   ├── alertSender.ts
+│   ├── discord.ts
+│   └── telegram.ts
+├── shared/                  # Reusable utilities
+│   ├── solana.ts
+│   ├── orcConstants.ts
+│   └── log.ts
+```
+
+---
+
+### ✍️ 2. **Code Readability Rules**
+
+| Rule | Description                                                                   |
+| ---- | ----------------------------------------------------------------------------- |
+| ✅ 1  | **No file should exceed 350 lines.**                                          |
+| ✅ 2  | Each file should be readable in **3 seconds or less**.                        |
+| ✅ 3  | Use **explicit naming** — never abbreviate (`getLiquidityData` not `getLiq`). |
+| ✅ 4  | Every function must have a **1-line comment** above it                        |
+| ✅ 5  | Avoid deep nesting (max depth = 2). Refactor into helpers.                    |
+| ✅ 6  | Use destructuring and async/await for clarity.                                |
+| ✅ 7  | Use `.map()`, `.filter()` cleanly, never mix them with side effects.          |
+| ✅ 8  | Never use `any`. Use proper `types.ts` files for custom types.                |
+
+---
+
+### 🧼 3. **Linting & Formatting**
+
+| Tool     | Purpose                    |
+| -------- | -------------------------- |
+| ESLint   | Enforces coding standards  |
+| Prettier | Enforces consistent format |
+| Husky    | Git hooks for lint + test  |
+
+✅ **Pre-configured ESLint & Prettier rules** (to be added to root):
+
+**`.eslintrc.js`**
+
+```js
+module.exports = {
+  env: { es2021: true, node: true },
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  parser: '@typescript-eslint/parser',
+  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+  plugins: ['@typescript-eslint'],
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'error',
+    'max-lines': ['error', 350],
+    'max-depth': ['warn', 2],
+    'no-console': 'warn',
+  },
+};
+```
+
+**`.prettierrc`**
+
+```json
+{
+  "semi": true,
+  "singleQuote": true,
+  "printWidth": 90,
+  "trailingComma": "es5"
+}
+```
+
+---
+
+### 🧱 4. **Module Design Rules**
+
+> All logic must be **modular**, no monolith files.
+
+| Rule | Description                                                |
+| ---- | ---------------------------------------------------------- |
+| ✅ 1  | Logic split: *fetcher*, *parser*, *scorer*, *alert sender* |
+| ✅ 2  | Every reusable part = its own function                     |
+| ✅ 3  | No file should export more than 2 functions                |
+| ✅ 4  | No logic written in `index.ts` — only orchestrators        |
+
+---
+
+### 🔐 5. **Security & Performance**
+
+| Area          | Rule                                                                               |
+| ------------- | ---------------------------------------------------------------------------------- |
+| RPC usage     | All Solana RPC calls must use **timeouts + retries** (use axios or fetch wrappers) |
+| Data handling | Validate all incoming addresses, inputs                                            |
+| WebSocket     | Auto-reconnect logic with cooldown                                                 |
+| Secrets       | Never commit `.env` or private keys                                                |
+| API Calls     | Use caching where possible (Redis/Supabase)                                        |
+
+---
+
+### 🧪 6. **Testing (Optional at Start, Required Later)**
+
+* Each module should be testable independently
+* Add one test file per folder (`.test.ts`)
+* Use `jest` or `vitest` with mock RPC responses
+
+---
+
+### 🔥 Bonus Quality Rule
+
+> **Every commit must make the codebase better.**
+> No clutter, no TODOs, no commented-out junk.
+
+---
+
+## ✅ Final TL;DR Rules for Your Dev
+
+> **0rug.com Coding Guidelines:**
+
+* Max 350 lines per file
+* Must read/understand in 3 seconds
+* Modular folders by feature
+* Lint with ESLint + Prettier + Husky
+* Avoid `any`, deep nesting, side effects
+* RPC calls must be resilient (timeout/retry)
+* No bloat, no messy commits
+
+---
+
