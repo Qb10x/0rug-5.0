@@ -1,22 +1,24 @@
-// AI API Integration with OpenAI/ChatGPT for Fast Analysis
+// AI API Integration with OpenRouter for ChatGPT Access
 // Following 0rug.com coding guidelines
 
-const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 
-export async function callOpenAIAPI(prompt: string): Promise<string> {
+export async function callOpenRouterAPI(prompt: string): Promise<string> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for faster responses
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://0rug.com', // Your site
+        'X-Title': '0rug MemeBot Chat' // Your app name
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'openai/gpt-3.5-turbo', // Using ChatGPT through OpenRouter
         messages: [
           {
             role: 'system',
@@ -39,7 +41,7 @@ export async function callOpenAIAPI(prompt: string): Promise<string> {
     clearTimeout(timeoutId);
     return data.choices[0].message.content;
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('OpenRouter API error:', error);
     if (error instanceof Error && error.name === 'AbortError') {
       return "Sorry, that's taking too long! Try asking something simpler or check your connection. 🚀";
     }
@@ -83,7 +85,7 @@ Provide a comprehensive analysis in this format:
 
 Keep it beginner-friendly with emojis and simple language.`;
 
-  const response = await callOpenAIAPI(prompt);
+  const response = await callOpenRouterAPI(prompt);
   
   // Parse the response to extract structured data
   const lines = response.split('\n');
@@ -139,7 +141,7 @@ Explain this in simple terms:
 
 Keep it conversational and beginner-friendly. Use emojis and simple language.`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 }
 
 // Generate "Explain Like I'm 5" explanations
@@ -151,7 +153,7 @@ Context: ${context}
 
 Make it super simple and use analogies that anyone can understand.`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 }
 
 // Generate risk assessment in plain English
@@ -166,7 +168,7 @@ Risk Factors: ${riskFactors.join(', ')}
 
 Explain what these risks mean in plain English and what a beginner should watch out for.`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 }
 
 // Generate "Should I Buy?" recommendation
@@ -183,7 +185,7 @@ Volume: $${tokenData.volume}
 
 Give a clear recommendation and explain why in simple terms.`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 }
 
 // Generate educational content about token metrics
@@ -195,7 +197,7 @@ Value: ${value}
 
 What does this mean for a beginner investor? Is this good or bad?`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 }
 
 // General AI response function for chat interface - Optimized for speed
@@ -224,7 +226,7 @@ export async function generateAIResponse(message: string, tokenData?: any): Prom
 
 Give a quick, honest answer about crypto risks. Be friendly but real about the dangers. Keep it under 100 words.`;
 
-    return await callOpenAIAPI(prompt);
+    return await callOpenRouterAPI(prompt);
   }
 
   // For general questions, use a simple prompt
@@ -232,5 +234,5 @@ Give a quick, honest answer about crypto risks. Be friendly but real about the d
 
 Give a helpful, friendly response about crypto. Keep it short and simple. Use emojis.`;
 
-  return await callOpenAIAPI(prompt);
+  return await callOpenRouterAPI(prompt);
 } 
