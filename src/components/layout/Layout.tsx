@@ -11,7 +11,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Sidebar - Always visible */}
       <Sidebar onCollapseChange={setIsSidebarCollapsed} />
       
@@ -19,7 +19,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className={`transition-all duration-300 ${
         isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
       }`}>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
           {children}
         </div>
       </div>

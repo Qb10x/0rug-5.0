@@ -26,10 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { colorUtils } from '@/lib/theme/colorUtils';
 import { WaitlistModal } from "@/components/waitlist/WaitlistModal";
-import { AuthModal } from "@/components/auth/AuthModal";
-import { UserProfile } from "@/components/auth/UserProfile";
 import { Logo } from "@/components/ui/Logo";
-import { useAuth } from "@/lib/auth/AuthContext";
 import Link from 'next/link';
 
 // Demo Modal Component
@@ -542,10 +539,8 @@ export default function LandingPage() {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const { user } = useAuth();
 
   // Rotate through chat messages
   useEffect(() => {
@@ -598,18 +593,15 @@ export default function LandingPage() {
                 <span className="text-sm font-medium">Docs</span>
               </Link>
               
-              {/* Show UserProfile if logged in, otherwise show auth button */}
-              {user ? (
-                <UserProfile />
-              ) : (
+              {/* Dashboard Button */}
+              <Link href="/trading">
                 <Button
-                  onClick={() => setShowAuthModal(true)}
                   className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-700 hover:via-pink-700 hover:to-orange-600 text-white font-semibold px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-0"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Sign Up / Sign In
+                  Go to Dashboard
                 </Button>
-              )}
+              </Link>
             </div>
           </div>
         </div>
@@ -946,10 +938,6 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* Waitlist Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
       <WaitlistModal 
         isOpen={showWaitlistModal} 
         onClose={() => setShowWaitlistModal(false)} 

@@ -107,29 +107,29 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         initial={{ x: -300 }}
         animate={{ x: 0 }}
         transition={{ duration: 0.3 }}
-        className={`fixed left-0 top-0 h-full bg-sidebar backdrop-blur-sm border-r border-sidebar-border z-50 transition-all duration-300 ${
+        className={`fixed left-0 top-0 h-full bg-gray-900/80 backdrop-blur-sm border-r border-gray-700 z-50 transition-all duration-300 ${
           isCollapsed ? 'w-16' : 'w-64'
         } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
           {!isCollapsed && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="flex items-center space-x-3"
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">0</span>
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">0</span>
               </div>
-              <h1 className="text-lg font-bold text-sidebar-foreground">0rug Analytics</h1>
+              <h1 className="text-lg font-bold text-white">0rug Analytics</h1>
             </motion.div>
           )}
           
           <div className="flex items-center space-x-2">
             <button
               onClick={() => handleCollapseChange(!isCollapsed)}
-              className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 text-sidebar-foreground"
+              className="p-2 rounded-lg hover:bg-gray-800/50 transition-colors duration-200 text-gray-300 hover:text-white"
             >
               {isCollapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
             </button>
@@ -137,7 +137,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             {/* Mobile close button */}
             <button
               onClick={() => setIsMobileOpen(false)}
-              className="lg:hidden p-2 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 text-sidebar-foreground"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-800/50 transition-colors duration-200 text-gray-300 hover:text-white"
             >
               <X className="w-4 h-4" />
             </button>
@@ -159,15 +159,15 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                       whileTap={{ scale: 0.98 }}
                       className={`group relative flex items-center px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
                         isActive 
-                          ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg' 
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                          ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white shadow-lg' 
+                          : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
                       }`}
                     >
                       {/* Icon */}
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
                         isActive 
-                          ? 'bg-primary/20' 
-                          : 'bg-sidebar-accent opacity-60 group-hover:opacity-100'
+                          ? 'bg-white/20' 
+                          : 'bg-gray-800/50 opacity-60 group-hover:opacity-100'
                       }`}>
                         {item.icon}
                       </div>
@@ -182,10 +182,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm font-medium truncate">{item.title}</p>
-                              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                              <p className="text-xs text-gray-400 truncate">{item.description}</p>
                             </div>
                             {item.badge && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
                                 {item.badge}
                               </span>
                             )}
@@ -197,7 +197,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                       {isActive && (
                         <motion.div
                           layoutId="activeTab"
-                          className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full"
+                          className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-purple-400 to-orange-400 rounded-r-full"
                         />
                       )}
                     </motion.div>
@@ -208,7 +208,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           </div>
 
           {/* Bottom navigation */}
-          <div className="border-t border-sidebar-border p-4">
+          <div className="border-t border-gray-700 p-4">
             <nav className="space-y-1">
               {bottomNavItems.map((item) => {
                 const isActive = pathname === item.href;
@@ -220,14 +220,14 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                       whileTap={{ scale: 0.98 }}
                       className={`group relative flex items-center px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
                         isActive 
-                          ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg' 
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                          ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white shadow-lg' 
+                          : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
                       }`}
                     >
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
                         isActive 
-                          ? 'bg-primary/20' 
-                          : 'bg-sidebar-accent opacity-60 group-hover:opacity-100'
+                          ? 'bg-white/20' 
+                          : 'bg-gray-800/50 opacity-60 group-hover:opacity-100'
                       }`}>
                         {item.icon}
                       </div>
@@ -239,7 +239,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                           className="flex-1 min-w-0"
                         >
                           <p className="text-sm font-medium truncate">{item.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                          <p className="text-xs text-gray-400 truncate">{item.description}</p>
                         </motion.div>
                       )}
                     </motion.div>
@@ -265,9 +265,9 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden p-2 bg-sidebar backdrop-blur-sm rounded-lg border border-sidebar-border"
+        className="fixed top-4 left-4 z-30 lg:hidden p-2 bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-700"
       >
-        <Menu className="w-5 h-5 text-sidebar-foreground" />
+        <Menu className="w-5 h-5 text-gray-300" />
       </button>
     </>
   );
