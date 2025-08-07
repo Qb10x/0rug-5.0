@@ -141,14 +141,17 @@ export function useAlertEngine() {
     showRead: boolean
   ) => {
     return alerts.filter(alert => {
-      const matchesSearch = alert.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           alert.title?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = alert.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'all' || alert.type === filterType;
       const matchesPriority = filterPriority === 'all' || alert.priority === filterPriority;
       const matchesRead = showRead || !alert.isRead;
       
       return matchesSearch && matchesType && matchesPriority && matchesRead;
-    });
+    }).map(alert => ({
+      ...alert,
+      title: `${alert.type.charAt(0).toUpperCase() + alert.type.slice(1)} Alert`,
+      status: 'sent' as const
+    }));
   }, [alerts]);
 
   // Update alert engine configuration

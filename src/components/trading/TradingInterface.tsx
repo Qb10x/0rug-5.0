@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { TradingState, Token } from './TradingState';
 import { TokenSelector } from './TokenSelector';
-import { RiskAssessment } from './RiskAssessment';
+import RiskAssessment from './RiskAssessment';
 
 // Trading interface props
 interface TradingInterfaceProps {
@@ -201,14 +201,10 @@ export function TradingInterface({
           {/* Risk Assessment */}
           {tradingState.quote && tradingState.inputAmount && (
             <RiskAssessment
-              inputToken={tradingState.inputToken}
-              outputToken={tradingState.outputToken}
-              amount={parseFloat(tradingState.inputAmount)}
               riskScore={calculateRiskScore(tradingState)}
               riskLevel={calculateRiskLevel(tradingState)}
               riskFactors={getRiskFactors(tradingState)}
               recommendations={getRecommendations(tradingState)}
-              isLoading={tradingState.isLoading}
             />
           )}
 

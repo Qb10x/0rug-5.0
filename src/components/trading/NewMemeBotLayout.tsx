@@ -12,7 +12,7 @@ import { TokenCardPanel } from './TokenCardPanel';
 import { generateAIResponse, analyzeTokenComprehensive } from '@/lib/api/ai';
 import { getTrendingTokensByChain, getChainDisplayName, analyzeTokenComprehensive as analyzeTokenData, analyzeLPLockStatus } from '@/lib/api/dexscreener';
 import { executeToolsForIntent } from '@/lib/api/aiToolExecutor';
-import { getEducationalResponse, addDYORWarning } from '@/lib/api/educationalKB';
+import { generateEducationalResponse } from '@/lib/api/educationalKB';
 import { InteractiveTokenCard } from './InteractiveTokenCard';
 import { TokenDetailsModal } from './TokenDetailsModal';
 import { TokenAnalysisCard } from './TokenAnalysisCard';
@@ -287,7 +287,7 @@ const TokenAnalysisMessage: React.FC<TokenAnalysisMessageProps> = ({
         <div className="ml-11">
           <TokenAnalysisCard 
             tokenData={message.tokenData}
-            analysis={message.analysis}
+            onViewDetails={() => {}}
           />
         </div>
       )}
@@ -329,8 +329,8 @@ const LPAnalysisMessage: React.FC<LPAnalysisMessageProps> = ({
       {message.lpData && message.tokenData && (
         <div className="ml-11">
           <LPLockAnalysisCard 
-            tokenData={message.tokenData}
             lpData={message.lpData}
+            onViewDetails={() => {}}
           />
         </div>
       )}

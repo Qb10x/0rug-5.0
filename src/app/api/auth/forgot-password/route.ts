@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import { sendVerificationCode } from '@/app/api/telegram/webhook/route';
+import { sendVerificationCode } from '@/lib/api/telegram';
 
 export async function POST(request: NextRequest) {
   try {

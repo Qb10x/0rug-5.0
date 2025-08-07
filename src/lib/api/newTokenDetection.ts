@@ -68,7 +68,7 @@ export async function getNewTokensLastHour(chain: string = 'solana'): Promise<Ne
     // Filter for tokens launched in the last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const newTokens = trendingTokens.filter(token => {
-      const launchTime = new Date(token.launchTime || token.createdAt || Date.now());
+      const launchTime = new Date((token as any).launchTime || (token as any).createdAt || Date.now());
       return launchTime > oneHourAgo;
     });
 
@@ -149,9 +149,9 @@ async function analyzeNewToken(token: any, chain: string): Promise<NewToken | nu
       currentPrice: parseFloat(token.priceUsd || 0),
       priceChange: token.priceChange?.h24 || 0,
       initialLiquidity: token.initialLiquidity || 0,
-      currentLiquidity: dexData?.liquidity?.usd || 0,
-      volume24h: dexData?.volume?.h24 || 0,
-      holderCount: dexData?.holders || 0,
+      currentLiquidity: (dexData as any)?.liquidity?.usd || 0,
+      volume24h: (dexData as any)?.volume?.h24 || 0,
+      holderCount: (dexData as any)?.holders || 0,
       riskScore,
       riskLevel: getRiskLevel(riskScore),
       launchQuality,

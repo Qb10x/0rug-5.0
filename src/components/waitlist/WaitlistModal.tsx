@@ -80,7 +80,7 @@ export function WaitlistModal({ isOpen, onClose }: WaitlistModalProps) {
     setStep("social");
   };
 
-  const handleInputChange = (field: keyof WaitlistForm, value: string) => {
+  const handleInputChange = (field: keyof WaitlistForm, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

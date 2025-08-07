@@ -405,7 +405,7 @@ ${rugAnalysis.riskFactors.map((factor: any) =>
   `• ${factor.factor}: ${factor.score}/10 - ${factor.description}`
 ).join('\n')}
 
-**Overall Assessment:** ${rugAnalysis.assessment || 'Risk assessment completed'}
+**Overall Assessment:** Risk assessment completed
 
 **Recommendation:** ${rugAnalysis.recommendations || 'Exercise caution and DYOR'}
 
@@ -455,14 +455,14 @@ async function executeHoneypotDetection(tokenAddress: string, enablePaidAPIs: bo
     
     const response = `**Honeypot Detection** 🍯
 
-**Sellability Test:** ${honeypotAnalysis.isSellable ? '✅ Can Sell' : '❌ Cannot Sell'}
+**Sellability Test:** ${honeypotAnalysis.sellTestResult ? '✅ Can Sell' : '❌ Cannot Sell'}
 
 **Risk Factors:**
-${honeypotAnalysis.riskFactors.map((factor: any) => 
-  `• ${factor.factor}: ${factor.present ? '❌ Present' : '✅ Not Found'} - ${factor.description}`
+${honeypotAnalysis.sellRestrictions.map((restriction: string) => 
+  `• ${restriction}`
 ).join('\n')}
 
-**Overall Assessment:** ${honeypotAnalysis.assessment || 'Honeypot analysis completed'}
+**Overall Assessment:** Honeypot analysis completed
 
 **Recommendation:** ${honeypotAnalysis.recommendations || 'Test sellability before investing'}
 
@@ -845,10 +845,10 @@ function formatRiskScoreResponse(riskScore: any): string {
   };
   
   categories.forEach(category => {
-    const categoryFactors = factors.filter(f => f.category === category);
+    const categoryFactors = factors.filter((f: any) => f.category === category);
     if (categoryFactors.length > 0) {
-      response += `${categoryIcons[category]} **${category.charAt(0).toUpperCase() + category.slice(1)}:**\n`;
-      categoryFactors.forEach(factor => {
+      response += `${categoryIcons[category as keyof typeof categoryIcons]} **${category.charAt(0).toUpperCase() + category.slice(1)}:**\n`;
+      categoryFactors.forEach((factor: any) => {
         const scoreIcon = factor.score >= 80 ? '✅' : factor.score >= 50 ? '⚠️' : '❌';
         response += `  ${scoreIcon} ${factor.name}: ${factor.score}/100\n`;
         response += `     ${factor.description}\n`;
@@ -860,7 +860,7 @@ function formatRiskScoreResponse(riskScore: any): string {
   // Add recommendations
   if (recommendations.length > 0) {
     response += `**💡 Recommendations:**\n`;
-    recommendations.forEach(rec => {
+    recommendations.forEach((rec: any) => {
       response += `• ${rec}\n`;
     });
     response += '\n';

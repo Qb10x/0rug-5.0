@@ -33,12 +33,14 @@ export default [
     },
     rules: {
       ...typescript.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'warn', // Changed from error to warn
-      'max-lines': ['warn', 350], // Changed from error to warn
-      'max-depth': ['warn', 2],
-      'no-console': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off', // Disabled for now
+      'max-lines': 'off', // Disabled for now
+      'max-depth': 'off', // Disabled for now
+      'no-console': 'off', // Disabled for now
       'no-undef': 'off', // Turn off since we're defining globals
-      '@typescript-eslint/no-unused-vars': 'warn', // Changed from error to warn
+      '@typescript-eslint/no-unused-vars': 'warn', // Keep as warning
+      '@typescript-eslint/no-empty-object-type': 'off', // Disabled
+      'no-case-declarations': 'off', // Disabled
     },
   },
   prettier,

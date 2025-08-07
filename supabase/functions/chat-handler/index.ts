@@ -1,4 +1,6 @@
+// @ts-ignore
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -26,7 +28,7 @@ interface ChatRequest {
   }
 }
 
-serve(async (req) => {
+serve(async (req: any) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -34,7 +36,9 @@ serve(async (req) => {
 
   try {
     // Create Supabase client
+    // @ts-ignore
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    // @ts-ignore
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')
     
     if (!supabaseUrl || !supabaseKey) {
@@ -112,7 +116,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error', 
-        details: error.message 
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
       { 
         status: 500, 

@@ -305,7 +305,7 @@ export async function getBirdeyeWhaleAlerts(tokenAddress: string): Promise<{
         timestamp: new Date(tx.timestamp || Date.now())
       }));
 
-    const totalWhaleVolume = whaleTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const totalWhaleVolume = whaleTransactions.reduce((sum: number, tx: any) => sum + tx.amount, 0);
     const whaleCount = whaleTransactions.length;
 
     // Calculate risk level
