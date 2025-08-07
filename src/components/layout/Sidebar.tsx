@@ -10,7 +10,8 @@ import {
   Home,
   Settings,
   Menu,
-  X
+  X,
+  BookOpen
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
@@ -53,7 +54,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     {
       id: 'trading',
       title: 'MemeBot Chat',
-      description: 'AI-powered token analysis',
+              description: 'token analysis powered by AI',
       icon: <Bot className="w-5 h-5" />,
       href: '/trading',
       color: 'from-indigo-500 to-purple-500',
@@ -67,6 +68,15 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       href: '/alerts',
       color: 'from-teal-500 to-cyan-500',
       badge: 'Live'
+    },
+    {
+      id: 'docs',
+      title: 'Documentation',
+      description: 'Complete guide & FAQs',
+      icon: <BookOpen className="w-5 h-5" />,
+      href: '/docs',
+      color: 'from-green-500 to-emerald-500',
+      badge: 'New'
     }
   ];
 

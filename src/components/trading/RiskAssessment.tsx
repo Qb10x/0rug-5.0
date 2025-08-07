@@ -1,147 +1,125 @@
-// Risk Assessment Component - following 0rug.com coding guidelines
+'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Shield, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, Shield, TrendingUp, TrendingDown } from 'lucide-react';
+import { getRiskLevelColor } from '@/lib/theme/colorUtils';
 
-// Risk assessment props
 interface RiskAssessmentProps {
-  inputToken: string;
-  outputToken: string;
-  amount: number;
-  riskScore: number;
   riskLevel: 'low' | 'medium' | 'high';
+  riskScore: number;
   riskFactors: string[];
   recommendations: string[];
-  isLoading?: boolean;
 }
 
 // Risk assessment component
-export function RiskAssessment({
-  inputToken,
-  outputToken,
-  amount,
-  riskScore,
-  riskLevel,
-  riskFactors,
-  recommendations,
-  isLoading = false
+export default function RiskAssessment({ 
+  riskLevel, 
+  riskScore, 
+  riskFactors, 
+  recommendations 
 }: RiskAssessmentProps) {
-  // Get risk color based on level
-  const getRiskColor = (level: string) => {
+  const riskColors = getRiskLevelColor(riskLevel);
+
+  // Get risk level display info
+  const getRiskLevelInfo = (level: string) => {
     switch (level) {
-      case 'low': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'medium': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'high': return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20';
+      case 'low': return { 
+        color: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20',
+        icon: Shield,
+        text: 'Low Risk'
+      };
+      case 'medium': return { 
+        color: 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20',
+        icon: AlertTriangle,
+        text: 'Medium Risk'
+      };
+      case 'high': return { 
+        color: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20',
+        icon: AlertTriangle,
+        text: 'High Risk'
+      };
+      default: return { 
+        color: 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20',
+        icon: AlertTriangle,
+        text: 'Unknown Risk'
+      };
     }
   };
 
-  // Get risk icon based on level
-  const getRiskIcon = (level: string) => {
-    switch (level) {
-      case 'low': return <CheckCircle className="w-4 h-4" />;
-      case 'medium': return <AlertTriangle className="w-4 h-4" />;
-      case 'high': return <AlertTriangle className="w-4 h-4" />;
-      default: return <Info className="w-4 h-4" />;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: 'auto' }}
-        className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
-      >
-        <div className="flex items-center space-x-2">
-          <Shield className="w-4 h-4 text-gray-400 animate-pulse" />
-          <span className="text-sm text-gray-500 dark:text-gray-400">Analyzing risk...</span>
-        </div>
-      </motion.div>
-    );
-  }
+  const riskInfo = getRiskLevelInfo(riskLevel);
+  const RiskIcon = riskInfo.icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-2">
-          <Shield className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            Risk Assessment
-          </h3>
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Shield className="w-5 h-5" />
+          Risk Assessment
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Risk Level Badge */}
+        <div className="flex items-center justify-between">
+          <Badge className={`${riskInfo.color} border-0`}>
+            <RiskIcon className="w-3 h-3 mr-1" />
+            {riskInfo.text}
+          </Badge>
+          <span className="text-sm text-gray-500">Score: {riskScore}/100</span>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getRiskColor(riskLevel)}`}>
-          {getRiskIcon(riskLevel)}
-          <span>{riskLevel.toUpperCase()} RISK</span>
-        </span>
-      </div>
 
-      {/* Trade Info */}
-      <div className="mb-3 p-3 bg-white dark:bg-gray-700 rounded-lg">
-        <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Trading</div>
-        <div className="text-sm font-medium text-gray-900 dark:text-white">
-          {amount} {inputToken} → {outputToken}
+        {/* Risk Score Progress Bar */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Risk Level</span>
+            <span className={`font-medium ${riskColors.text}`}>
+              {riskScore}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className={`h-3 rounded-full ${riskColors.progress}`}
+              style={{ width: `${riskScore}%` }}
+            ></div>
+          </div>
         </div>
-      </div>
 
-      {/* Risk Score */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-600 dark:text-gray-400">Risk Score</span>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
-            {riskScore}/100
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all duration-300 ${
-              riskLevel === 'low' ? 'bg-green-500' :
-              riskLevel === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-            }`}
-            style={{ width: `${riskScore}%` }}
-          />
-        </div>
-      </div>
+        {/* Risk Factors */}
+        {riskFactors.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+              Risk Factors
+            </h4>
+            <ul className="space-y-1">
+              {riskFactors.map((factor, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>{factor}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {/* Risk Factors */}
-      {riskFactors.length > 0 && (
-        <div className="mb-3">
-          <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Risk Factors
-          </h4>
-          <ul className="space-y-1">
-            {riskFactors.map((factor, index) => (
-              <li key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-start space-x-2">
-                <span className="text-red-500 mt-0.5">•</span>
-                <span>{factor}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <div>
-          <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Recommendations
-          </h4>
-          <ul className="space-y-1">
-            {recommendations.map((recommendation, index) => (
-              <li key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-start space-x-2">
-                <span className="text-green-500 mt-0.5">•</span>
-                <span>{recommendation}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </motion.div>
+        {/* Recommendations */}
+        {recommendations.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+              Recommendations
+            </h4>
+            <ul className="space-y-1">
+              {recommendations.map((rec, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-green-500 mt-0.5">•</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 } 

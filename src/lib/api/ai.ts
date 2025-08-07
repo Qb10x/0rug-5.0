@@ -30,7 +30,23 @@ export async function callOpenRouterAPI(prompt: string): Promise<string> {
         messages: [
           {
             role: 'system',
-            content: 'You are MemeBot, a friendly crypto expert. Keep responses short, conversational, and helpful. Use simple language and emojis. Be honest about risks but encouraging. Max 150 words.'
+            content: `You are MemeBot AI - an elite, multilingual, real-time crypto intelligence agent. You speak like a knowledgeable, witty, real person - never scripted, never robotic.
+
+🎭 PERSONALITY:
+- Be the token when users ask about specific coins
+- Sound natural and conversational, not like a chatbot
+- Use emojis and crypto-native language
+- Be educational and helpful
+- Always warn about risks and promote DYOR
+
+🎯 MISSION:
+- Deliver real value and real-time insights
+- Be conversational and engaging
+- Educate users about crypto
+- Warn about risks and scams
+- Keep responses under 150 words
+
+Remember: You are not a chatbot. You are MemeBot - a knowledgeable crypto friend who happens to be an AI.`
           },
           {
             role: 'user',
@@ -221,40 +237,66 @@ What does this mean for a beginner investor? Is this good or bad?`;
   return await callOpenRouterAPI(prompt);
 }
 
-// General AI response function for chat interface - Optimized for speed
+// Enhanced AI response function with MemeBot personality and smart API usage
 export async function generateAIResponse(message: string, tokenData?: any): Promise<string> {
   try {
-    // Quick responses for common questions
+    const lowerMessage = message.toLowerCase().trim();
+    
+    // Check if this is a token-specific question that requires API data
+    const tokenSymbols = ['bonk', 'pepe', 'doge', 'wen', 'wif', 'shib', 'floki'];
+    const isTokenSpecific = tokenSymbols.some(symbol => lowerMessage.includes(symbol));
+    
+    // If it's a token-specific question without API data, provide educational response
+    if (isTokenSpecific && !tokenData) {
+      const tokenResponses: { [key: string]: string } = {
+        'bonk': "Hey fren! 🐶 I'm BONK - Solana's first dog coin! I've been around since 2022 and have a huge community. But remember, I'm still a meme coin, so I'm super volatile! Only invest what you can afford to lose. Want me to check my current stats? DYOR! 🔍",
+        'pepe': "Yo! 🐸 I'm PEPE - the frog that took over crypto! I'm on Ethereum and have been making waves. But like all meme coins, I'm risky business! Never invest more than you can lose. Want to see my latest data? Always DYOR! 💪",
+        'doge': "Woof! 🐕 I'm DOGE - the original meme coin! Started as a joke, now I'm everywhere. Still unpredictable though - crypto is wild! Only invest what you can afford to lose. Want my current stats? 🚀",
+        'wen': "Hey! 🌙 I'm WEN - the cat coin that's been trending! I'm on Solana and have been getting attention. But remember, I'm a meme coin - super volatile! Want to see my real-time data? DYOR! 😺",
+        'wif': "Sup! 🐕 I'm WIF - the dog coin that's been barking! I'm on Solana and have been getting some love. But like all meme coins, I'm risky! Want to check my stats? Always DYOR! 🦮"
+      };
+      
+      for (const [token, response] of Object.entries(tokenResponses)) {
+        if (lowerMessage.includes(token)) {
+          return response;
+        }
+      }
+    }
+    
+    // Check for general greetings and help requests
     const quickResponses: { [key: string]: string } = {
-      'hi': "Hey there! 👋 I'm MemeBot, your crypto buddy! What token do you want to know about?",
-      'hello': "Hello! 🚀 Ready to explore some tokens together?",
+      'hi': "Hey there! 👋 I'm MemeBot - your crypto buddy! What token do you want to explore today?",
+      'hello': "Hello fren! 🚀 Ready to dive into some tokens together?",
       'help': "I'm here to help! Ask me about any token, and I'll break it down in simple terms. What's on your mind?",
-      'bonk': "BONK is a meme coin on Solana! 🐕 It's been around since 2022 and has a big community. But like all meme coins, it's risky - prices swing wildly! Only invest what you can afford to lose. DYOR! 🔍",
-      'pepe': "PEPE is another popular meme coin! 🐸 It's on Ethereum and has been around for a while. But remember - meme coins are super volatile! Never invest more than you can lose. Always DYOR! 💪",
-      'doge': "DOGE is the original meme coin! 🐕 It started as a joke but now has a huge community. Still risky though - crypto is unpredictable! Only invest what you can afford to lose. 🚀"
+      'thanks': "You're welcome! 🙏 Happy to help with your crypto journey!",
+      'bye': "See you later! 👋 Stay safe out there in the crypto world!"
     };
 
     // Check for quick responses first
-    const lowerMessage = message.toLowerCase().trim();
     for (const [key, response] of Object.entries(quickResponses)) {
       if (lowerMessage.includes(key)) {
         return response;
       }
     }
 
-    // For specific token questions, use a focused prompt
-    if (message.toLowerCase().includes('rug') || message.toLowerCase().includes('safe') || message.toLowerCase().includes('risk')) {
-      const prompt = `User asked: "${message}"
+    // For risk/safety questions, provide educational response without API
+    if (lowerMessage.includes('rug') || lowerMessage.includes('safe') || lowerMessage.includes('risk') || lowerMessage.includes('scam')) {
+      return "Great question! 🛡️ Here's what to watch out for in crypto:\n\n🚩 **Red Flags:**\n• No LP lock\n• Promises of guaranteed returns\n• Pressure to buy quickly\n• Unknown developers\n• Fake websites\n\n✅ **Green Flags:**\n• LP locked for 30+ days\n• Contract renounced\n• Verified contract\n• Active community\n• Transparent team\n\nAlways DYOR (Do Your Own Research)! Never invest more than you can afford to lose! 💪";
+    }
 
-Give a quick, honest answer about crypto risks. Be friendly but real about the dangers. Keep it under 100 words.`;
+    // For general crypto education, provide helpful response
+    if (lowerMessage.includes('what is') || lowerMessage.includes('explain') || lowerMessage.includes('how to')) {
+      const prompt = `You are MemeBot AI - a friendly, knowledgeable crypto expert. The user asked: "${message}"
+
+Give a helpful, educational response about crypto. Be conversational, use emojis, and always include a DYOR warning. Keep it under 150 words. Speak like a knowledgeable friend, not a robot.`;
 
       return await callOpenRouterAPI(prompt);
     }
 
-    // For general questions, use a simple prompt
-    const prompt = `User: "${message}"
+    // For general questions, use enhanced prompt with MemeBot personality
+    const prompt = `You are MemeBot AI - a friendly, knowledgeable crypto expert with personality. The user asked: "${message}"
 
-Give a helpful, friendly response about crypto. Keep it short and simple. Use emojis.`;
+Respond as MemeBot would - naturally, helpfully, and with personality. Use emojis, be conversational, and always include a DYOR warning. Keep it under 150 words. Don't sound scripted - be natural and engaging.`;
 
     return await callOpenRouterAPI(prompt);
   } catch (error) {

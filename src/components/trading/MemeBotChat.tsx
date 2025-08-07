@@ -13,8 +13,20 @@ import {
   Mic,
   Lightbulb
 } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 import { getTrendingTokensByChain, getChainDisplayName } from '@/lib/api/dexscreener';
 import { generateAIResponse } from '@/lib/api/ai';
+import { analyzeTokenHolders, formatHolderAnalysisForChat } from '@/lib/api/holderAnalysis';
+import { analyzeRugPullRisk, formatRugAnalysisForChat } from '@/lib/api/rugAnalysis';
+import { analyzeHoneypotRisk, formatHoneypotAnalysisForChat } from '@/lib/api/honeypotDetection';
+import { getNewTokensLastHour, formatNewTokenAnalysisForChat } from '@/lib/api/newTokenDetection';
+import { getVolumeSpikes, formatVolumeSpikeAnalysisForChat } from '@/lib/api/volumeSpikeDetection';
+import { getWhaleActivityToday, formatWhaleActivityAnalysisForChat } from '@/lib/api/whaleTracking';
+import { executeToolsForIntent } from '@/lib/api/aiToolExecutor';
+
+// Edge Function URLs
+const SUPABASE_URL = 'https://bgqczmovcojjzhdacbij.supabase.co/functions/v1';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJncWN6bW92Y29qanpoZGFjYmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MjI2MDcsImV4cCI6MjA2OTk5ODYwN30.kvww0lTKfwIXrJXpqfMdwK4HjYJiljr0Kt6k97tYYPg';
 
 interface Message {
   id: string;
@@ -22,6 +34,7 @@ interface Message {
   content: string;
   timestamp: Date;
   tokenData?: any;
+  messageId?: string; // For tracking with Edge Functions
 }
 
 interface TokenCard {
@@ -33,6 +46,12 @@ interface TokenCard {
   volume?: string;
 }
 
+interface ChatContext {
+  wallet_address?: string;
+  token_address?: string;
+  trading_context?: string;
+}
+
 export function MemeBotChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -41,7 +60,16 @@ export function MemeBotChat() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [trendingTokens, setTrendingTokens] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize session and user ID
+  useEffect(() => {
+    setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+    setUserId(`user_${Math.random().toString(36).substr(2, 9)}`);
+  }, []);
 
   // Popular tokens for newbies
   const popularTokens: TokenCard[] = [
@@ -58,7 +86,17 @@ export function MemeBotChat() {
     "How much liquidity do you have?",
     "What's your market cap?",
     "Is this token safe to buy?",
-    "What's the token age?"
+    "What's the token age?",
+    "Who are the top holders?",
+    "Analyze holder distribution",
+    "Is this a rug?",
+    "Check security score",
+    "Show new tokens",
+    "Volume spike analysis",
+    "Whale activity today",
+    "What should I look for in a good token?",
+    "Teach me how to spot a rugpull",
+    "What's the risk score of this token?"
   ];
 
   const scrollToBottom = () => {
@@ -73,12 +111,75 @@ export function MemeBotChat() {
     loadTrendingTokens();
   }, []);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const loadTrendingTokens = async () => {
     try {
       const tokens = await getTrendingTokensByChain('solana');
       setTrendingTokens(tokens.slice(0, 3));
     } catch (error) {
       console.error('Failed to load trending tokens:', error);
+    }
+  };
+
+  // Call chat-handler Edge Function
+  const callChatHandler = async (message: string, context?: ChatContext) => {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/chat-handler`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ANON_KEY}`
+        },
+        body: JSON.stringify({
+          message,
+          user_id: userId,
+          session_id: sessionId,
+          context
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Chat handler failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Chat handler error:', error);
+      throw error;
+    }
+  };
+
+  // Call ai-response-handler Edge Function
+  const callAIResponseHandler = async (aiResponse: string, messageId: string, metadata?: any) => {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/ai-response-handler`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ANON_KEY}`
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          session_id: sessionId,
+          message_id: messageId,
+          ai_response: aiResponse,
+          metadata
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI response handler failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('AI response handler error:', error);
+      throw error;
     }
   };
 
@@ -97,25 +198,65 @@ export function MemeBotChat() {
     setIsLoading(true);
 
     try {
-      // Check if it's a trending token request
-      if (content.toLowerCase().includes('trending')) {
-        const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
-        const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
-        
-        const trendingResponse = await handleTrendingRequest(chain);
-        setMessages(prev => [...prev, trendingResponse]);
+      // Prepare context for the chat handler
+      const context: ChatContext = {
+        trading_context: selectedToken ? `Analyzing ${selectedToken} token` : 'General crypto analysis',
+        token_address: selectedToken || undefined
+      };
+
+      // Call chat-handler to log the user message
+      const chatHandlerResponse = await callChatHandler(content, context);
+      userMessage.messageId = chatHandlerResponse.message_id;
+
+      // Use the smart AI tool executor to handle all requests
+      const startTime = Date.now();
+      const toolResult = await executeToolsForIntent(content, {
+        enablePaidAPIs: true,
+        personaEnabled: true
+      });
+      const responseTime = Date.now() - startTime;
+
+      let botMessage: Message;
+
+      if (toolResult.success) {
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          content: toolResult.response,
+          timestamp: new Date(),
+          tokenData: toolResult.data
+        };
+
+        // Call ai-response-handler to log the AI response
+        await callAIResponseHandler(toolResult.response, userMessage.messageId!, {
+          model_used: 'smart_ai_executor',
+          response_time: responseTime,
+          tokens_used: toolResult.response.length,
+          source: toolResult.source,
+          fallback_used: toolResult.fallbackUsed
+        });
       } else {
-        // Regular AI response
+        // Fallback to regular AI response if tool execution fails
         const aiResponse = await generateAIResponse(content, null);
-        const botMessage: Message = {
+        
+        botMessage = {
           id: (Date.now() + 1).toString(),
           type: 'bot',
           content: aiResponse,
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, botMessage]);
+
+        // Call ai-response-handler to log the AI response
+        await callAIResponseHandler(aiResponse, userMessage.messageId!, {
+          model_used: 'gpt-4',
+          response_time: responseTime,
+          tokens_used: aiResponse.length
+        });
       }
+
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error('Error processing message:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
@@ -192,6 +333,261 @@ export function MemeBotChat() {
     }
   };
 
+  const handleHolderAnalysisRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract token address from the message
+      const tokenAddressMatch = content.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+      const tokenAddress = tokenAddressMatch ? tokenAddressMatch[0] : selectedToken;
+      
+      if (!tokenAddress) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Please provide a token address to analyze holders. You can:\n\n1. Paste a token address directly\n2. Select a token from the left panel first\n3. Ask "Who are the top holders of [TOKEN_ADDRESS]?"`,
+          timestamp: new Date()
+        };
+      }
+
+      // Analyze token holders
+      const holderAnalysis = await analyzeTokenHolders(tokenAddress);
+      
+      if (!holderAnalysis) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Sorry, I couldn't analyze holders for that token. This could be because:\n\n• The token address is invalid\n• The token has no holders yet\n• There was an issue fetching the data\n\nPlease try with a different token address.`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatHolderAnalysisForChat(holderAnalysis);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Holder analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing holders. Please try again with a different token or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  const handleRugAnalysisRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract token address from the message
+      const tokenAddressMatch = content.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+      const tokenAddress = tokenAddressMatch ? tokenAddressMatch[0] : selectedToken;
+      
+      if (!tokenAddress) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Please provide a token address to analyze for rug pull risk. You can:\n\n1. Paste a token address directly\n2. Select a token from the left panel first\n3. Ask "Is this a rug? [TOKEN_ADDRESS]"`,
+          timestamp: new Date()
+        };
+      }
+
+      // Analyze rug pull risk
+      const rugAnalysis = await analyzeRugPullRisk(tokenAddress);
+      
+      if (!rugAnalysis) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Sorry, I couldn't analyze rug pull risk for that token. This could be because:\n\n• The token address is invalid\n• The token has no trading activity\n• There was an issue fetching the data\n\nPlease try with a different token address.`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatRugAnalysisForChat(rugAnalysis);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Rug analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing rug pull risk. Please try again with a different token or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  const handleHoneypotAnalysisRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract token address from the message
+      const tokenAddressMatch = content.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+      const tokenAddress = tokenAddressMatch ? tokenAddressMatch[0] : selectedToken;
+      
+      if (!tokenAddress) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Please provide a token address to check for honeypot characteristics. You can:\n\n1. Paste a token address directly\n2. Select a token from the left panel first\n3. Ask "Is this a honeypot? [TOKEN_ADDRESS]"`,
+          timestamp: new Date()
+        };
+      }
+
+      // Analyze honeypot risk
+      const honeypotAnalysis = await analyzeHoneypotRisk(tokenAddress);
+      
+      if (!honeypotAnalysis) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `Sorry, I couldn't analyze honeypot risk for that token. This could be because:\n\n• The token address is invalid\n• The token has no trading activity\n• There was an issue fetching the data\n\nPlease try with a different token address.`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatHoneypotAnalysisForChat(honeypotAnalysis);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Honeypot analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing honeypot risk. Please try again with a different token or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  const handleNewTokenRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract chain from the message or default to solana
+      const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
+      const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
+      
+      // Get new tokens from the last hour
+      const newTokens = await getNewTokensLastHour(chain);
+      
+      if (newTokens.length === 0) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `No new tokens found in the last hour on ${chain}. This could be because:\n\n• No new tokens were launched recently\n• The tokens are still being indexed\n• There was an issue fetching the data\n\nTry asking about trending tokens instead!`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatNewTokenAnalysisForChat(newTokens);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('New token analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing new tokens. Please try again or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  const handleVolumeSpikeRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract chain from the message or default to solana
+      const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
+      const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
+      
+      // Get volume spikes
+      const volumeSpikes = await getVolumeSpikes(chain, 10);
+      
+      if (volumeSpikes.length === 0) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `No significant volume spikes detected on ${chain}. This could indicate:\n\n• Stable market conditions\n• Low trading activity\n• No recent major events\n\nTry checking trending tokens or expanding the time range.`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatVolumeSpikeAnalysisForChat(volumeSpikes);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Volume spike analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing volume spikes. Please try again or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
+  const handleWhaleActivityRequest = async (content: string): Promise<Message> => {
+    try {
+      // Extract chain from the message or default to solana
+      const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
+      const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
+      
+      // Get whale activity for today
+      const whaleActivities = await getWhaleActivityToday(chain, 10);
+      
+      if (whaleActivities.length === 0) {
+        return {
+          id: Date.now().toString(),
+          type: 'bot' as const,
+          content: `No significant whale activity detected on ${chain} today. This could indicate:\n\n• Quiet market conditions\n• Whales are holding positions\n• No major moves happening\n\nTry checking trending tokens or expanding the time range.`,
+          timestamp: new Date()
+        };
+      }
+
+      // Format the analysis for chat
+      const response = formatWhaleActivityAnalysisForChat(whaleActivities);
+      
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: response,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Whale activity analysis error:', error);
+      return {
+        id: Date.now().toString(),
+        type: 'bot' as const,
+        content: `Sorry, I encountered an error while analyzing whale activity. Please try again or check back later.`,
+        timestamp: new Date()
+      };
+    }
+  };
+
   const handleTokenSelect = (token: TokenCard) => {
     setSelectedToken(token.symbol);
     setShowOnboarding(false);
@@ -231,9 +627,7 @@ export function MemeBotChat() {
         {/* Left Panel Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 Token Selection
@@ -384,9 +778,7 @@ export function MemeBotChat() {
         {/* Chat Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 MemeBot Chat
@@ -408,8 +800,8 @@ export function MemeBotChat() {
                 transition={{ duration: 0.5 }}
                 className="mb-8"
               >
-                <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-6">
-                  <Bot className="w-12 h-12 text-white" />
+                <div className="mb-6">
+                  <Logo size="lg" showText={false} />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
                   Welcome to MemeBot Chat!
@@ -480,8 +872,8 @@ export function MemeBotChat() {
                     >
                       <div className="flex items-start space-x-3">
                         {message.type === 'bot' && (
-                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Bot className="w-4 h-4 text-white" />
+                          <div className="flex-shrink-0">
+                            <Logo size="sm" showText={false} />
                           </div>
                         )}
                         <div className="flex-1">
@@ -491,7 +883,7 @@ export function MemeBotChat() {
                           <div className={`text-xs mt-2 ${
                             message.type === 'user' ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'
                           }`}>
-                            {message.timestamp.toLocaleTimeString()}
+                            {mounted ? message.timestamp.toLocaleTimeString() : ''}
                           </div>
                         </div>
                       </div>
@@ -508,8 +900,8 @@ export function MemeBotChat() {
                 >
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-md p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                        <Bot className="w-4 h-4 text-white" />
+                      <div className="flex-shrink-0">
+                        <Logo size="sm" showText={false} />
                       </div>
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>

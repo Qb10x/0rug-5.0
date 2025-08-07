@@ -1,50 +1,36 @@
-// 0rug Platform Color System - Mercury Inspired
+// 0rug Platform Color System - Vibrant Theme
 // Unified design tokens for consistent theming
 
 export const colors = {
-  // Mercury Warm Colors
-  mercury: {
-    // Warm Black (Mercury feel) - Dark theme background
-    warmBlack: '#1a1a1a',
-    // Warm Green (Mercury feel) - Dark theme CTAs
-    warmGreen: '#00ff88',
-    // Dark Black (Mercury/electric feel) - Dark theme font
-    darkBlack: '#0a0a0a',
-    // Warm Grey (Mercury feel) - Light theme background
-    warmGrey: '#f5f5f5',
-    // Warm Yellow - Light theme CTAs
-    warmYellow: '#ffd700',
-  },
-  
-  // Primary Brand Colors (Mercury-inspired)
+  // Primary Brand Colors (Vibrant Blue/Purple Theme)
   primary: {
-    50: '#e6fff0',
-    100: '#ccffe1',
-    200: '#99ffc3',
-    300: '#66ffa5',
-    400: '#33ff87',
-    500: '#00ff88', // Warm Green
-    600: '#00cc6a',
-    700: '#00994c',
-    800: '#00662e',
-    900: '#003310',
+    50: '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6', // Vibrant Blue
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+    900: '#1e3a8a',
   },
   
-  // Secondary Colors (Warm Yellow for CTAs)
+  // Secondary Colors (Purple/Orange Accents)
   secondary: {
-    50: '#fffbf0',
-    100: '#fff7e0',
-    200: '#ffefc0',
-    300: '#ffe7a0',
-    400: '#ffdf80',
-    500: '#ffd700', // Warm Yellow
-    600: '#e6c200',
-    700: '#ccad00',
-    800: '#b39800',
-    900: '#998300',
+    50: '#faf5ff',
+    100: '#f3e8ff',
+    200: '#e9d5ff',
+    300: '#d8b4fe',
+    400: '#c084fc',
+    500: '#a855f7', // Vibrant Purple
+    600: '#9333ea',
+    700: '#7c3aed',
+    800: '#6b21a8',
+    900: '#581c87',
   },
   
-  // Accent Colors
+  // Accent Colors (Vibrant Theme)
   accent: {
     blue: '#3b82f6',
     cyan: '#06b6d4',
@@ -58,7 +44,7 @@ export const colors = {
     indigo: '#6366f1',
   },
   
-  // Neutral Colors
+  // Neutral Colors (Dark Theme)
   neutral: {
     50: '#f8fafc',
     100: '#f1f5f9',
@@ -93,40 +79,40 @@ export const colors = {
   },
 };
 
-// Light Theme - Mercury Inspired
+// Light Theme - Vibrant Theme
 export const lightTheme = {
   // Background Colors
   background: {
-    primary: '#f5f5f5', // Warm Grey (Mercury feel)
-    secondary: '#e8e8e8',
-    tertiary: '#dcdcdc',
+    primary: '#ffffff',
+    secondary: '#f8fafc',
+    tertiary: '#f1f5f9',
     card: '#ffffff',
     modal: 'rgba(255, 255, 255, 0.95)',
     sidebar: '#ffffff',
-    gradient: 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
+    gradient: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
   },
   
   // Text Colors
   text: {
-    primary: '#0a0a0a', // Dark Black (Mercury/electric feel)
-    secondary: '#1a1a1a',
-    tertiary: '#2a2a2a',
-    muted: '#666666',
+    primary: '#0f172a',
+    secondary: '#334155',
+    tertiary: '#475569',
+    muted: '#64748b',
     inverse: '#ffffff',
   },
   
   // Border Colors
   border: {
-    primary: '#d0d0d0',
-    secondary: '#c0c0c0',
-    accent: '#ffd700', // Warm Yellow
+    primary: '#e2e8f0',
+    secondary: '#cbd5e1',
+    accent: '#3b82f6', // Vibrant Blue
   },
   
   // Interactive Colors
   interactive: {
-    hover: '#e8e8e8',
-    active: '#dcdcdc',
-    focus: '#ffd700', // Warm Yellow
+    hover: '#f1f5f9',
+    active: '#e2e8f0',
+    focus: '#3b82f6', // Vibrant Blue
   },
   
   // Shadow Colors
@@ -138,40 +124,40 @@ export const lightTheme = {
   },
 };
 
-// Dark Theme - Mercury Inspired
+// Dark Theme - Vibrant Theme (Matches your screenshots)
 export const darkTheme = {
   // Background Colors
   background: {
-    primary: '#1a1a1a', // Warm Black (Mercury feel)
-    secondary: '#0f0f0f',
-    tertiary: '#2a2a2a',
-    card: '#0f0f0f',
-    modal: 'rgba(10, 10, 10, 0.95)',
-    sidebar: '#0f0f0f',
-    gradient: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)',
+    primary: '#0f172a', // Dark blue background
+    secondary: '#1e293b',
+    tertiary: '#334155',
+    card: '#1e293b',
+    modal: 'rgba(15, 23, 42, 0.95)',
+    sidebar: '#1e293b',
+    gradient: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
   },
   
   // Text Colors
   text: {
-    primary: '#0a0a0a', // Dark Black (Mercury/electric feel)
-    secondary: '#1a1a1a',
-    tertiary: '#2a2a2a',
-    muted: '#666666',
-    inverse: '#ffffff',
+    primary: '#f8fafc',
+    secondary: '#e2e8f0',
+    tertiary: '#cbd5e1',
+    muted: '#94a3b8',
+    inverse: '#0f172a',
   },
   
   // Border Colors
   border: {
-    primary: '#333333',
-    secondary: '#444444',
-    accent: '#00ff88', // Warm Green (Mercury feel)
+    primary: '#334155',
+    secondary: '#475569',
+    accent: '#3b82f6', // Vibrant Blue
   },
   
   // Interactive Colors
   interactive: {
-    hover: '#2a2a2a',
-    active: '#333333',
-    focus: '#00ff88', // Warm Green (Mercury feel)
+    hover: '#334155',
+    active: '#475569',
+    focus: '#3b82f6', // Vibrant Blue
   },
   
   // Shadow Colors
@@ -183,35 +169,35 @@ export const darkTheme = {
   },
 };
 
-// Gradient Presets - Mercury Inspired
+// Gradient Presets - Vibrant Theme
 export const gradients = {
-  primary: 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)', // Warm Green
-  secondary: 'linear-gradient(135deg, #ffd700 0%, #e6c200 100%)', // Warm Yellow
-  accent: 'linear-gradient(135deg, #00ff88 0%, #ffd700 100%)', // Green to Yellow
-  success: 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)', // Warm Green
-  warning: 'linear-gradient(135deg, #ffd700 0%, #e6c200 100%)', // Warm Yellow
-  error: 'linear-gradient(135deg, #ff4444 0%, #cc3333 100%)', // Error Red
-  dark: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)', // Warm Black
-  light: 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)', // Warm Grey
+  primary: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Vibrant Blue
+  secondary: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)', // Vibrant Purple
+  accent: 'linear-gradient(135deg, #3b82f6 0%, #a855f7 100%)', // Blue to Purple
+  success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+  warning: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Orange
+  error: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+  dark: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', // Dark Blue
+  light: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', // Light
 };
 
-// Component-specific color mappings - Mercury Inspired
+// Component-specific color mappings - Vibrant Theme
 export const componentColors = {
   button: {
     primary: {
-      background: colors.mercury.warmGreen, // Warm Green for dark theme
-      text: '#0a0a0a', // Dark Black
-      hover: '#00cc6a',
+      background: colors.primary[500], // Vibrant Blue
+      text: '#ffffff',
+      hover: colors.primary[600],
     },
     secondary: {
-      background: colors.mercury.warmYellow, // Warm Yellow for light theme
-      text: '#0a0a0a', // Dark Black
-      hover: '#e6c200',
+      background: colors.secondary[500], // Vibrant Purple
+      text: '#ffffff',
+      hover: colors.secondary[600],
     },
     outline: {
       background: 'transparent',
-      text: colors.mercury.warmGreen, // Warm Green
-      border: colors.mercury.warmGreen, // Warm Green
+      text: colors.primary[500], // Vibrant Blue
+      border: colors.primary[500], // Vibrant Blue
       hover: colors.primary[50],
     },
   },
@@ -225,14 +211,14 @@ export const componentColors = {
   input: {
     background: 'var(--input-bg)',
     border: 'var(--border-primary)',
-    focus: colors.mercury.warmGreen, // Warm Green
+    focus: colors.primary[500], // Vibrant Blue
     text: 'var(--text-primary)',
   },
   
   sidebar: {
     background: 'var(--sidebar-bg)',
     text: 'var(--text-primary)',
-    active: colors.mercury.warmGreen, // Warm Green
+    active: colors.primary[500], // Vibrant Blue
     hover: 'var(--interactive-hover)',
   },
 };

@@ -22,13 +22,17 @@ export class RealTimeDataService {
       this.stopUpdates();
     }
 
-    // Update every 15 seconds
+
+
+    // Update every 30 seconds (reduced frequency to avoid rate limits)
     this.updateInterval = setInterval(async () => {
       await this.fetchLatestData(chain);
-    }, 15000);
+    }, 30000);
 
-    // Initial fetch
-    this.fetchLatestData(chain);
+    // Initial fetch with delay to avoid immediate API calls
+    setTimeout(() => {
+      this.fetchLatestData(chain);
+    }, 1000);
   }
 
   // Stop real-time updates
@@ -52,7 +56,23 @@ export class RealTimeDataService {
   // Fetch latest data from DexScreener
   private async fetchLatestData(chain: string): Promise<void> {
     try {
+      // Check if we have recent data to avoid unnecessary API calls
+      if (this.currentData.length > 0) {
+        const lastUpdate = this.currentData[0]?.lastUpdated;
+        if (lastUpdate && Date.now() - lastUpdate.getTime() < 60000) { // 1 minute cache
+          return;
+        }
+      }
+
+      console.log(`Fetching trending tokens for chain: ${chain}`);
       const trendingTokens = await getTrendingTokensByChain(chain);
+      
+      if (!trendingTokens || trendingTokens.length === 0) {
+        console.warn('No trending tokens found from API');
+        return;
+      }
+
+      console.log(`Successfully fetched ${trendingTokens.length} trending tokens`);
       
       // Convert to real-time format
       const realTimeData: RealTimeTokenData[] = trendingTokens.slice(0, 3).map((token, index) => ({
@@ -88,6 +108,7 @@ export class RealTimeDataService {
       this.notifySubscribers();
     } catch (error) {
       console.error('Failed to fetch real-time data:', error);
+      // Don't use fallback data - let the UI handle empty state
     }
   }
 
@@ -116,6 +137,8 @@ export class RealTimeDataService {
     
     return history;
   }
+
+
 
   // Notify all subscribers
   private notifySubscribers(): void {

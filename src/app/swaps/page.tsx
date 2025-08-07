@@ -32,6 +32,7 @@ export default function SwapsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDex, setFilterDex] = useState<string>('all');
+  const [mounted, setMounted] = useState(false);
 
   // Load swaps data
   const loadSwaps = async () => {
@@ -85,6 +86,10 @@ export default function SwapsPage() {
 
   useEffect(() => {
     loadSwaps();
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   const filteredSwaps = swaps.filter(swap => {
@@ -235,7 +240,7 @@ export default function SwapsPage() {
                           <span className="text-gray-400">Impact:</span> {(swap.priceImpact * 100).toFixed(2)}%
                         </span>
                         <span className="text-gray-300">
-                          <span className="text-gray-400">Time:</span> {new Date(swap.timestamp).toLocaleTimeString()}
+                          <span className="text-gray-400">Time:</span> {mounted ? new Date(swap.timestamp).toLocaleTimeString() : ''}
                         </span>
                       </div>
                     </div>

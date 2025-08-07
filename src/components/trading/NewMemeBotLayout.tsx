@@ -11,6 +11,8 @@ import {
 import { TokenCardPanel } from './TokenCardPanel';
 import { generateAIResponse, analyzeTokenComprehensive } from '@/lib/api/ai';
 import { getTrendingTokensByChain, getChainDisplayName, analyzeTokenComprehensive as analyzeTokenData, analyzeLPLockStatus } from '@/lib/api/dexscreener';
+import { executeToolsForIntent } from '@/lib/api/aiToolExecutor';
+import { getEducationalResponse, addDYORWarning } from '@/lib/api/educationalKB';
 import { InteractiveTokenCard } from './InteractiveTokenCard';
 import { TokenDetailsModal } from './TokenDetailsModal';
 import { TokenAnalysisCard } from './TokenAnalysisCard';
@@ -94,6 +96,7 @@ interface TypingMessageProps {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.type === 'user';
+  const [mounted, setMounted] = useState(false);
   
   // Clean up the text by removing markdown formatting
   const cleanText = message.content
@@ -106,6 +109,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     .replace(/>\s/g, '') // Remove blockquotes
     .replace(/\n\n/g, '\n') // Clean up double line breaks
     .trim();
+  
+  // Use useEffect to ensure client-side only rendering for timestamp
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   return (
     <motion.div
@@ -133,7 +141,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             <div className={`text-xs mt-2 ${
               isUser ? 'text-purple-100' : 'text-gray-500 dark:text-gray-400'
             }`}>
-              {message.timestamp.toLocaleTimeString()}
+              {mounted ? message.timestamp.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              }) : ''}
             </div>
           </div>
         </div>
@@ -197,6 +210,12 @@ const InteractiveTokensMessage: React.FC<InteractiveTokensMessageProps> = ({
   onViewDetails, 
   onTrade 
 }) => {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -226,7 +245,7 @@ const InteractiveTokensMessage: React.FC<InteractiveTokensMessageProps> = ({
           </div>
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          {message.timestamp.toLocaleTimeString()}
+          {mounted ? message.timestamp.toLocaleTimeString() : ''}
         </div>
       </div>
     </motion.div>
@@ -380,7 +399,7 @@ export const NewMemeBotLayout: React.FC = () => {
     return null;
   };
 
-  // Handle send message with real AI integration
+  // Handle send message with smart intent classification
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
 
@@ -401,66 +420,54 @@ export const NewMemeBotLayout: React.FC = () => {
     try {
       console.log('Processing message:', content);
       
-      // First, check if message contains a contract address
-      const contractAddress = extractContractAddress(content);
-      
-      if (contractAddress) {
-        console.log('Found contract address:', contractAddress);
-        // Check if it's an LP lock request
-        if (content.toLowerCase().includes('lp') || content.toLowerCase().includes('lock') || content.toLowerCase().includes('locked')) {
-          console.log('Processing LP lock analysis');
-          const lpResponse = await handleLPLockAnalysis(contractAddress);
-          setMessages(prev => [...prev, lpResponse]);
-        } else {
-          console.log('Processing token analysis');
-          // If we found a contract address, analyze it regardless of other keywords
-          const analysisResponse = await handleTokenAnalysis(contractAddress);
-          setMessages(prev => [...prev, analysisResponse]);
-        }
-      }
-      // Check if it's a trending token request
-      else if (content.toLowerCase().includes('trending')) {
-        console.log('Processing trending request');
-        const chainMatch = content.match(/(solana|bsc|ethereum|polygon|arbitrum|optimism)/i);
-        const chain = chainMatch ? chainMatch[1].toLowerCase() : 'solana';
-        
-        const trendingResponse = await handleTrendingRequest(chain);
-        setMessages(prev => [...prev, trendingResponse]);
-      }
-      // Check if it's a token analysis request with keywords
-      else if (content.toLowerCase().includes('analyze') || content.toLowerCase().includes('token')) {
-        console.log('Processing AI analysis request');
-        // Use real AI response for keyword-based requests
-        const aiResponse = await generateAIResponse(content, null);
-        
-        // Start typing effect
-        setIsTyping(true);
-        setTypingContent(aiResponse);
+      // Use the smart AI tool executor to handle all requests
+      const toolResult = await executeToolsForIntent(content, {
+        enablePaidAPIs: true,
+        personaEnabled: true
+      });
+
+      let botMessage: Message;
+
+      if (toolResult.success) {
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          content: toolResult.response,
+          timestamp: new Date(),
+          tokenData: toolResult.data
+        };
       } else {
-        console.log('Processing general AI request');
-        // Use real AI response
+        // Fallback to regular AI response if tool execution fails
         const aiResponse = await generateAIResponse(content, null);
         
-        // Start typing effect
-        setIsTyping(true);
-        setTypingContent(aiResponse);
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          content: aiResponse,
+          timestamp: new Date()
+        };
       }
+
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error in handleSendMessage:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: `Sorry, I'm having trouble processing your request. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again!`,
+        content: `Sorry, I'm having trouble processing your request. Please try again in a moment! 🔧`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-      setIsLoading(false);
     }
   };
 
   // Handle trending token requests with real data
   const handleTrendingRequest = async (chain: string): Promise<Message> => {
     try {
+      console.log(`Fetching fresh trending data for ${chain}...`);
+      
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = Date.now();
       const tokens = await getTrendingTokensByChain(chain);
       const chainName = getChainDisplayName(chain);
       
@@ -468,7 +475,7 @@ export const NewMemeBotLayout: React.FC = () => {
         return {
           id: Date.now().toString(),
           type: 'bot' as const,
-          content: `No trending tokens found on ${chainName}. Try asking about a specific token or check back later!`,
+          content: `No fresh trending tokens found on ${chainName} right now. Try asking about a specific token or check back in a few minutes! 🔄`,
           timestamp: new Date()
         };
       }
@@ -478,15 +485,16 @@ export const NewMemeBotLayout: React.FC = () => {
       return {
         id: Date.now().toString(),
         type: 'interactive-tokens' as const,
-        content: `🔥 **Top 5 Trending ${chainName} Tokens**\n\nClick on any token below to view details or trade!`,
+        content: `🔥 **Live Trending ${chainName} Tokens**\n\nThese are the hottest tokens right now with real volume and price movement! Click any token below to view details or trade! ⚡`,
         timestamp: new Date(),
         tokens: trendingTokens
       };
     } catch (error) {
+      console.error('Trending request error:', error);
       return {
         id: Date.now().toString(),
         type: 'bot' as const,
-        content: `Sorry, I couldn't fetch trending tokens right now. Try asking about a specific token or check back later!`,
+        content: `Sorry, I couldn't fetch fresh trending tokens right now. The market data might be temporarily unavailable. Try asking about a specific token instead! 🔄`,
         timestamp: new Date()
       };
     }
@@ -495,10 +503,13 @@ export const NewMemeBotLayout: React.FC = () => {
   // Handle comprehensive token analysis
   const handleTokenAnalysis = async (contractAddress: string): Promise<Message> => {
     try {
-      // Fetch comprehensive token data
-      const tokenData = await analyzeTokenData(contractAddress);
+      console.log('Starting token analysis for:', contractAddress);
       
-      if (!tokenData) {
+      // Fetch comprehensive token data using the new API
+      const comprehensiveData = await analyzeTokenData(contractAddress);
+      
+      if (!comprehensiveData) {
+        console.log('No token data found for:', contractAddress);
         return {
           id: Date.now().toString(),
           type: 'bot',
@@ -507,18 +518,18 @@ export const NewMemeBotLayout: React.FC = () => {
         };
       }
 
-      // Generate AI analysis
-      const analysis = await analyzeTokenComprehensive(tokenData.basic, tokenData.risk);
+      console.log('Token data found:', comprehensiveData.basic.symbol);
       
       return {
         id: Date.now().toString(),
         type: 'token-analysis',
-        content: `🔍 **Token Analysis Complete!**\n\nI've analyzed ${tokenData.basic.symbol} (${tokenData.basic.name}) for you. Here's what I found:`,
+        content: `🔍 **Token Analysis Complete!**\n\nI've analyzed ${comprehensiveData.basic.symbol} (${comprehensiveData.basic.name}) for you. Here's what I found:`,
         timestamp: new Date(),
-        analysis,
-        tokenData: tokenData.basic
+        analysis: comprehensiveData,
+        tokenData: comprehensiveData.basic
       };
     } catch (error) {
+      console.error('Error in handleTokenAnalysis:', error);
       return {
         id: Date.now().toString(),
         type: 'bot',
@@ -531,22 +542,13 @@ export const NewMemeBotLayout: React.FC = () => {
   // Handle LP lock analysis
   const handleLPLockAnalysis = async (contractAddress: string): Promise<Message> => {
     try {
-      // Fetch comprehensive token data
-      const tokenData = await analyzeTokenData(contractAddress);
+      console.log('Starting LP lock analysis for:', contractAddress);
       
-      if (!tokenData) {
-        return {
-          id: Date.now().toString(),
-          type: 'bot',
-          content: `Sorry, I couldn't find data for that token address. Please check the address and try again!`,
-          timestamp: new Date()
-        };
-      }
-
-      // Get LP lock analysis
+      // Get LP lock analysis using the new API
       const lpData = await analyzeLPLockStatus(contractAddress);
       
       if (!lpData) {
+        console.log('No LP lock data found for:', contractAddress);
         return {
           id: Date.now().toString(),
           type: 'bot',
@@ -555,6 +557,8 @@ export const NewMemeBotLayout: React.FC = () => {
         };
       }
 
+      console.log('LP lock data found:', lpData);
+
       // Generate response message
       const lockStatus = lpData.isLocked ? 'LOCKED' : 'UNLOCKED';
       const riskEmoji = lpData.riskLevel === 'LOW' ? '🟢' : lpData.riskLevel === 'MEDIUM' ? '🟡' : '🔴';
@@ -562,12 +566,12 @@ export const NewMemeBotLayout: React.FC = () => {
       return {
         id: Date.now().toString(),
         type: 'lp-analysis',
-        content: `🔒 **LP Lock Analysis Complete!**\n\n${tokenData.basic.symbol} LP Status: **${lockStatus}** ${riskEmoji}\n\nSecurity Score: ${lpData.securityScore}/100\nRisk Level: ${lpData.riskLevel}`,
+        content: `🔒 **LP Lock Analysis Complete!**\n\nLP Status: **${lockStatus}** ${riskEmoji}\n\nSecurity Score: ${lpData.securityScore}/100\nRisk Level: ${lpData.riskLevel}`,
         timestamp: new Date(),
-        lpData,
-        tokenData: tokenData.basic
+        lpData
       };
     } catch (error) {
+      console.error('Error in handleLPLockAnalysis:', error);
       return {
         id: Date.now().toString(),
         type: 'bot',

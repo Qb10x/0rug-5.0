@@ -296,26 +296,56 @@ export const TokenCardPanel: React.FC = () => {
   const [tokens, setTokens] = useState<RealTimeTokenData[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Subscribe to real-time updates
+  // Subscribe to real-time updates - only when component is mounted and visible
   useEffect(() => {
-    setLoading(true);
+    // Only start updates if the component is actually visible and not already running
+    const isVisible = document.visibilityState === 'visible';
+    const isAlreadyRunning = realTimeService.isRunning();
     
-    // Start real-time service
-    realTimeService.startUpdates('solana');
-    
-    // Subscribe to updates
-    const unsubscribe = realTimeService.subscribe((data) => {
-      setTokens(data);
-      setLastUpdated(new Date());
-      setLoading(false);
-    });
+    if (isVisible && !isAlreadyRunning) {
+      setLoading(true);
+      
+      // Start real-time service with error handling
+      try {
+        realTimeService.startUpdates('solana');
+        
+        // Subscribe to updates
+        const unsubscribe = realTimeService.subscribe((data) => {
+          setTokens(data);
+          setLastUpdated(new Date());
+          setLoading(false);
+        });
 
-    // Cleanup on unmount
-    return () => {
-      unsubscribe();
-      realTimeService.stopUpdates();
-    };
+        // Cleanup on unmount
+        return () => {
+          unsubscribe();
+          // Only stop if no other components are using the service
+          if (realTimeService.getCurrentData().length === 0) {
+            realTimeService.stopUpdates();
+          }
+        };
+      } catch (error) {
+        console.warn('Failed to start real-time updates:', error);
+        setLoading(false);
+      }
+    } else if (isAlreadyRunning) {
+      // If service is already running, just subscribe to existing data
+      const unsubscribe = realTimeService.subscribe((data) => {
+        setTokens(data);
+        setLastUpdated(new Date());
+        setLoading(false);
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   return (
@@ -330,7 +360,7 @@ export const TokenCardPanel: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Live • {lastUpdated.toLocaleTimeString()}
+                Live • {mounted ? lastUpdated.toLocaleTimeString() : ''}
               </span>
             </div>
           )}

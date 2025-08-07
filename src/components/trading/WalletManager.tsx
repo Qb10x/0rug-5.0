@@ -1,109 +1,135 @@
-// Wallet Manager Component - following 0rug.com coding guidelines
+'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Wallet, LogOut, Zap } from 'lucide-react';
-import { WalletState, WalletModalState } from './TradingState';
+import React, { useState } from 'react';
+import { Wallet, LogOut, Settings, User, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { getStatusColor } from '@/lib/theme/colorUtils';
 
-// Wallet manager props
 interface WalletManagerProps {
-  walletState: WalletState;
-  walletModal: WalletModalState;
-  onConnectWallet: (walletId: string) => Promise<void>;
-  onDisconnectWallet: () => void;
-  onOpenWalletModal: () => void;
-  onCloseWalletModal: () => void;
+  walletAddress?: string;
+  isConnected: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  balance?: string;
 }
 
 // Wallet manager component
-export function WalletManager({
-  walletState,
-  walletModal,
-  onConnectWallet,
-  onDisconnectWallet,
-  onOpenWalletModal,
-  onCloseWalletModal
+export default function WalletManager({ 
+  walletAddress, 
+  isConnected, 
+  onConnect, 
+  onDisconnect,
+  balance 
 }: WalletManagerProps) {
-  // Get available wallets
-  const getAvailableWallets = () => {
-    return [
-      { id: 'phantom', name: 'Phantom', icon: '👻' },
-      { id: 'solflare', name: 'Solflare', icon: '🔥' },
-      { id: 'backpack', name: 'Backpack', icon: '🎒' }
-    ];
+  const [showDetails, setShowDetails] = useState(false);
+  const successColors = getStatusColor('success');
+
+  // Format wallet address for display
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  // Format wallet address
-  const formatWalletAddress = (address: string): string => {
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
-  };
-
-  return (
-    <div className="flex items-center gap-4">
-      {walletState.isConnected ? (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <Wallet className="w-4 h-4 text-green-500" />
-            <span className="text-sm font-medium text-green-500">
-              {formatWalletAddress(walletState.publicKey)}
-            </span>
-          </div>
-          <button
-            onClick={onDisconnectWallet}
-            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={onOpenWalletModal}
+  if (!isConnected) {
+    return (
+      <div className="flex items-center space-x-2">
+        <Button
+          onClick={onConnect}
           className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
         >
-          <Zap className="w-4 h-4" />
-          <span>Connect Wallet</span>
-        </button>
-      )}
+          <Wallet className="w-4 h-4" />
+          Connect Wallet
+        </Button>
+      </div>
+    );
+  }
 
-      {/* Wallet Modal */}
-      {walletModal.isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={onCloseWalletModal}
+  return (
+    <div className="relative">
+      <div className="flex items-center space-x-2">
+        {/* Wallet Status */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+          <Wallet className="w-4 h-4 text-green-500" />
+          <span className="text-sm font-medium text-green-500">
+            {formatAddress(walletAddress || '')}
+          </span>
+        </div>
+
+        {/* Disconnect Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDisconnect}
+          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Connect Wallet</h3>
-              <button
-                onClick={onCloseWalletModal}
-                className="text-gray-400 hover:text-gray-600"
+          <LogOut className="w-4 h-4" />
+        </Button>
+
+        {/* Settings Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowDetails(!showDetails)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </Button>
+      </div>
+
+      {/* Wallet Details Dropdown */}
+      {showDetails && (
+        <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50">
+          <div className="space-y-3">
+            {/* Wallet Info */}
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Wallet Address
+                </p>
+                <p className="text-xs text-gray-500 font-mono">
+                  {walletAddress}
+                </p>
+              </div>
+            </div>
+
+            {/* Balance */}
+            {balance && (
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Balance
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {balance} SOL
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Connection Status */}
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${successColors.bg}`}></div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Connected to Solana
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDisconnect}
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
               >
-                ✕
-              </button>
+                <LogOut className="w-4 h-4 mr-2" />
+                Disconnect Wallet
+              </Button>
             </div>
-            <div className="space-y-3">
-              {getAvailableWallets().map((wallet) => (
-                <button
-                  key={wallet.id}
-                  onClick={() => onConnectWallet(wallet.id)}
-                  disabled={walletModal.isLoading}
-                  className="w-full flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <span className="text-xl">{wallet.icon}</span>
-                  <span className="font-medium">{wallet.name}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
     </div>
   );

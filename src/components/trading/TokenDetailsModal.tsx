@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Shield, AlertTriangle, CheckCircle, Clock, DollarSign, TrendingUp, Users, ExternalLink, Copy, AlertCircle } from 'lucide-react';
-import { getDexscreenerTokenData, calculateRugRiskScore, DexscreenerPair } from '@/lib/api/dexscreener';
+import { getDexscreenerTokenData, analyzeTokenComprehensive, DexscreenerPair } from '@/lib/api/dexscreener';
 import { getJupiterTokenMetadata } from '@/lib/api/jupiter';
 
 interface TokenDetailsModalProps {
@@ -55,7 +55,7 @@ export const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
 
       // Calculate risk assessment
       if (dexData) {
-        const risk = calculateRiskAssessment(dexData);
+        const risk = await calculateRiskAssessment(dexData);
         setRiskAssessment(risk);
       }
     } catch (error) {
@@ -65,67 +65,116 @@ export const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
     }
   };
 
-  const calculateRiskAssessment = (data: DexscreenerPair): RiskAssessment => {
-    let totalScore = 0;
-    const factors = {
-      liquidity: { score: 0, reason: '' },
-      volume: { score: 0, reason: '' },
-      age: { score: 0, reason: '' },
-      priceStability: { score: 0, reason: '' }
-    };
+  const calculateRiskAssessment = async (data: DexscreenerPair): Promise<RiskAssessment> => {
+    try {
+      // Use the enhanced comprehensive analysis
+      const comprehensiveData = await analyzeTokenComprehensive(data.baseToken.address);
+      
+      if (!comprehensiveData) {
+        // Fallback to basic calculation
+        return {
+          score: 50,
+          level: 'Medium',
+          factors: {
+            liquidity: { score: 25, reason: 'Unable to analyze' },
+            volume: { score: 25, reason: 'Unable to analyze' },
+            age: { score: 0, reason: 'Unable to analyze' },
+            priceStability: { score: 0, reason: 'Unable to analyze' }
+          }
+        };
+      }
 
-    // Liquidity assessment
-    if (data.liquidity.usd < 10000) {
-      factors.liquidity = { score: 30, reason: 'Very low liquidity (< $10K)' };
-    } else if (data.liquidity.usd < 50000) {
-      factors.liquidity = { score: 15, reason: 'Low liquidity (< $50K)' };
-    } else if (data.liquidity.usd < 100000) {
-      factors.liquidity = { score: 5, reason: 'Moderate liquidity (< $100K)' };
-    } else {
-      factors.liquidity = { score: 0, reason: 'Good liquidity (> $100K)' };
+      // Use the comprehensive risk data
+      const totalScore = comprehensiveData.risk.overallRiskScore;
+      const riskLevel = comprehensiveData.risk.riskLevel === 'LOW' ? 'Low' : 
+                       comprehensiveData.risk.riskLevel === 'MEDIUM' ? 'Medium' : 
+                       comprehensiveData.risk.riskLevel === 'HIGH' ? 'High' : 'Critical';
+
+      return {
+        score: totalScore,
+        level: riskLevel as 'Low' | 'Medium' | 'High' | 'Critical',
+        factors: {
+          liquidity: { 
+            score: comprehensiveData.risk.liquidityRisk, 
+            reason: comprehensiveData.risk.riskFactors.find(f => f.includes('liquidity')) || 'Liquidity risk assessed' 
+          },
+          volume: { 
+            score: Math.round((comprehensiveData.metrics.liquidityToVolumeRatio > 10 ? 25 : 0)), 
+            reason: comprehensiveData.risk.riskFactors.find(f => f.includes('volume')) || 'Volume risk assessed' 
+          },
+          age: { 
+            score: comprehensiveData.metrics.pairAge < 24 * 60 * 60 * 1000 ? 20 : 0, 
+            reason: comprehensiveData.risk.riskFactors.find(f => f.includes('new')) || 'Age risk assessed' 
+          },
+          priceStability: { 
+            score: comprehensiveData.risk.volatilityRisk, 
+            reason: comprehensiveData.risk.riskFactors.find(f => f.includes('volatility')) || 'Price stability assessed' 
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Error calculating risk assessment:', error);
+      // Fallback to basic calculation
+      const factors = {
+        liquidity: { score: 0, reason: '' },
+        volume: { score: 0, reason: '' },
+        age: { score: 0, reason: '' },
+        priceStability: { score: 0, reason: '' }
+      };
+
+      // Basic liquidity assessment
+      if (data.liquidity.usd < 10000) {
+        factors.liquidity = { score: 30, reason: 'Very low liquidity (< $10K)' };
+      } else if (data.liquidity.usd < 50000) {
+        factors.liquidity = { score: 15, reason: 'Low liquidity (< $50K)' };
+      } else if (data.liquidity.usd < 100000) {
+        factors.liquidity = { score: 5, reason: 'Moderate liquidity (< $100K)' };
+      } else {
+        factors.liquidity = { score: 0, reason: 'Good liquidity (> $100K)' };
+      }
+
+      // Basic volume assessment
+      const volumeToLiquidityRatio = data.volume.h24 / data.liquidity.usd;
+      if (volumeToLiquidityRatio > 10) {
+        factors.volume = { score: 25, reason: 'Suspicious volume/liquidity ratio' };
+      } else if (volumeToLiquidityRatio > 5) {
+        factors.volume = { score: 15, reason: 'High volume/liquidity ratio' };
+      } else {
+        factors.volume = { score: 0, reason: 'Normal volume/liquidity ratio' };
+      }
+
+            // Basic age assessment
+      const pairAge = Date.now() - data.pairCreatedAt;
+      const daysOld = pairAge / (1000 * 60 * 60 * 24);
+      if (daysOld < 1) {
+        factors.age = { score: 20, reason: 'Very new token (< 1 day)' };
+      } else if (daysOld < 7) {
+        factors.age = { score: 10, reason: 'New token (< 1 week)' };
+      } else {
+        factors.age = { score: 0, reason: 'Established token (> 1 week)' };
+      }
+
+      // Price stability assessment
+      if (data.priceChange.h24 < -50) {
+        factors.priceStability = { score: 25, reason: 'Major price crash (> 50%)' };
+      } else if (data.priceChange.h24 < -20) {
+        factors.priceStability = { score: 15, reason: 'Significant price drop (> 20%)' };
+      } else if (data.priceChange.h24 > 100) {
+        factors.priceStability = { score: 10, reason: 'Suspicious price pump (> 100%)' };
+      } else {
+        factors.priceStability = { score: 0, reason: 'Stable price movement' };
+      }
+
+      const totalScore = factors.liquidity.score + factors.volume.score + factors.age.score + factors.priceStability.score;
+
+      let level: 'Low' | 'Medium' | 'High' | 'Critical';
+      if (totalScore <= 20) level = 'Low';
+      else if (totalScore <= 40) level = 'Medium';
+      else if (totalScore <= 70) level = 'High';
+      else level = 'Critical';
+
+      return { score: totalScore, level, factors };
     }
-
-    // Volume assessment
-    const volumeToLiquidityRatio = data.volume.h24 / data.liquidity.usd;
-    if (volumeToLiquidityRatio > 10) {
-      factors.volume = { score: 25, reason: 'Suspicious volume/liquidity ratio' };
-    } else if (volumeToLiquidityRatio > 5) {
-      factors.volume = { score: 15, reason: 'High volume/liquidity ratio' };
-    } else {
-      factors.volume = { score: 0, reason: 'Normal volume/liquidity ratio' };
-    }
-
-    // Age assessment
-    const pairAge = Date.now() - data.pairCreatedAt;
-    const daysOld = pairAge / (1000 * 60 * 60 * 24);
-    if (daysOld < 1) {
-      factors.age = { score: 20, reason: 'Very new token (< 1 day)' };
-    } else if (daysOld < 7) {
-      factors.age = { score: 10, reason: 'New token (< 1 week)' };
-    } else {
-      factors.age = { score: 0, reason: 'Established token (> 1 week)' };
-    }
-
-    // Price stability assessment
-    if (data.priceChange.h24 < -50) {
-      factors.priceStability = { score: 25, reason: 'Major price crash (> 50%)' };
-    } else if (data.priceChange.h24 < -20) {
-      factors.priceStability = { score: 15, reason: 'Significant price drop (> 20%)' };
-    } else if (data.priceChange.h24 > 100) {
-      factors.priceStability = { score: 10, reason: 'Suspicious price pump (> 100%)' };
-    } else {
-      factors.priceStability = { score: 0, reason: 'Stable price movement' };
-    }
-
-    totalScore = factors.liquidity.score + factors.volume.score + factors.age.score + factors.priceStability.score;
-
-    let level: 'Low' | 'Medium' | 'High' | 'Critical';
-    if (totalScore <= 20) level = 'Low';
-    else if (totalScore <= 40) level = 'Medium';
-    else if (totalScore <= 70) level = 'High';
-    else level = 'Critical';
-
-    return { score: totalScore, level, factors };
   };
 
   const copyToClipboard = (text: string) => {
